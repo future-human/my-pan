@@ -1227,11 +1227,10 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
   document.getElementById('search-input').value = '';
   const btn = document.getElementById('refresh-btn');
   btn.disabled = true;
-  btn.textContent = '刷新中...';
+  toast('刷新中...', 'info', 0);
   const ok = await loadFiles();
   if (ok) toast(`刷新完成，共 ${countFiles(files)} 个文件`, 'success');
   btn.disabled = false;
-  btn.textContent = '刷新';
 });
 
 // ===== Logout =====
