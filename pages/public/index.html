@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的网盘</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%234285f4'/><stop offset='1' stop-color='%231a73e8'/></linearGradient></defs><ellipse cx='38' cy='52' rx='28' ry='22' fill='url(%23g)'/><ellipse cx='62' cy='42' rx='28' ry='28' fill='url(%23g)'/><ellipse cx='50' cy='34' rx='26' ry='24' fill='url(%23g)'/></svg>">
+  <link rel="stylesheet" href="style.css">
+  <script src="column-resizer.js" defer></script>
+  <script src="qrcode.js" defer></script>
+</head>
+
+<body>
+
+  <!-- Login -->
+  <div id="login-overlay">
+    <div class="login-box">
+      <h1>我的网盘</h1>
+      <p>请输入访问密码</p>
+      <input type="password" id="password-input" placeholder="密码" autofocus autocomplete="off">
+      <button type="button" id="login-btn">进入</button>
+      <div class="login-error" id="login-error">密码错误，请重试</div>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <!-- Drag overlay -->
+  <div class="drag-overlay" id="drag-overlay">
+    <div class="drag-overlay-content">📁 释放上传</div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <h1>我的网盘</h1>
+      <div class="storage-select" id="storage-select">
+        <span class="storage-select-trigger" id="storage-select-trigger">
+          <span id="storage-select-label"></span>
+          <span class="storage-select-arrow"></span>
+        </span>
+        <div class="storage-select-dropdown" id="storage-select-dropdown"></div>
+      </div>
+      <div class="usage" id="usage">
+        <div class="usage-bar-wrap">
+          <div class="usage-bar-fill" id="usage-bar-fill"></div>
+        </div>
+        <span class="usage-text" id="usage-text"></span>
+      </div>
+    </div>
+    <button class="btn-logout" id="logout-btn" title="退出登录">退出</button>
+  </header>
+
+  <!-- Hidden file inputs for upload -->
+  <input type="file" id="file-input" multiple style="display:none">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="btn btn-upload" id="upload-btn">上传</button>
+    <button class="btn btn-primary" id="new-folder-btn">新建文件夹</button>
+    <button class="btn btn-refresh" id="refresh-btn">刷新</button>
+    <button class="btn btn-shares" id="manage-shares-btn">管理分享</button>
+    <input type="text" class="search-input" id="search-input" placeholder="搜索文件...">
+    <span class="spacer"></span>
+    <span class="count" id="file-count"></span>
+    <span class="batch-info" id="batch-info">
+      <span id="selected-text">已选 <span id="selected-count">0</span> 个</span>
+      <button class="btn batch-dl" id="batch-download-btn">批量下载</button>
+      <button class="btn batch-del" id="batch-delete-btn">批量删除</button>
+      <button class="btn btn-clear" id="clear-select-btn">清空选择</button>
+    </span>
+  </div>
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="breadcrumb-item" data-prefix="">根目录</span>
+  </div>
+
+  <!-- File list -->
+  <div class="file-list">
+    <table id="file-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="select-all" title="全选"></th>
+          <th data-sort="name" class="sorted" data-dir="asc">文件名</th>
+          <th data-sort="size">大小</th>
+          <th data-sort="date">修改时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="file-tbody"></tbody>
+    </table>
+    <div class="empty" id="empty-state">
+      <div class="icon">📭</div>
+      <p id="empty-text">存储桶中没有文件</p>
+    </div>
+  </div>
+
+  <!-- Preview modal -->
+  <div class="preview-overlay" id="preview-overlay">
+    <div class="preview-container">
+      <div class="preview-header">
+        <span class="preview-title" id="preview-title"></span>
+        <div class="preview-header-right">
+          <span class="preview-charset-group" id="preview-charset-group">
+            <span>编码</span>
+            <select class="preview-charset" id="preview-charset">
+              <option value="utf-8">UTF-8</option>
+              <option value="gbk">GBK</option>
+              <option value="gb2312">GB2312</option>
+              <option value="gb18030">GB18030</option>
+              <option value="big5">Big5</option>
+              <option value="shift_jis">Shift_JIS</option>
+              <option value="euc-jp">EUC-JP</option>
+              <option value="euc-kr">EUC-KR</option>
+              <option value="iso-8859-1">Latin-1</option>
+              <option value="windows-1252">Windows-1252</option>
+            </select>
+          </span>
+          <button class="preview-close" id="preview-close">&times;</button>
+        </div>
+      </div>
+      <div class="preview-body">
+        <iframe id="preview-iframe" allow="fullscreen; autoplay" sandbox="allow-same-origin"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context menu -->
+  <div class="context-menu" id="context-menu">
+    <div class="context-item" data-action="download">下载</div>
+    <div class="context-item" data-action="rename">重命名</div>
+    <div class="context-item" data-action="delete">删除</div>
+    <div class="context-item" data-action="share">分享</div>
+    <div class="context-item" data-action="preview">预览</div>
+  </div>
+
+  <!-- 分离部署时script标签指定data-api-base属性 -->
+  <!-- <script src="app.js" data-api-base="https://api.example.com"> -->
+  <script src="app.js">
+  </script>
+</body>
+
+</html>

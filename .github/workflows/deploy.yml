@@ -1,0 +1,169 @@
+name: Deploy Worker
+
+# =============================================================================
+# 触发器
+# =============================================================================
+on:
+  # 推送到 master 且变更涉及以下路径时自动部署
+  push:
+    branches: [master]
+    paths:
+      - 'worker/**'                          # Worker 源码或 wrangler.toml
+      - 'pages/public/**'                    # 静态前端
+      - '.github/workflows/deploy-worker.yml' # 工作流自身
+  # 允许在 Actions 页面手动触发（Run workflow 按钮）
+  workflow_dispatch:
+
+# =============================================================================
+# 部署 Job — 对同名 Worker 执行原地更新，不会重建
+# =============================================================================
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # CLOUDFLARE认证信息
+    # job 级别的 env，所有 step 自动继承，无需每个 step 重复声明
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      D1_DATABASE_NAME: ${{ secrets.D1_DATABASE_NAME }}
+
+
+    steps:
+      # ---- 环境准备 ----
+      - uses: actions/checkout@v5            # 检出代码
+
+      - uses: actions/setup-node@v5           # 安装 Node.js（wrangler 依赖）
+        with:
+          node-version: 22
+
+      - working-directory: worker
+        run: npm ci                           # 安装依赖，ci 按 lock 文件严格安装
+
+      # ---- 类型检查（在部署前阻断类型错误） ----
+      - working-directory: worker
+        run: npx tsc --noEmit
+
+      # ---- 同步机密到 CloudFlare Worker（加密存储，控制台不可回读）----
+      # Worker 机密在 CloudFlare 端持久保存，不受 deploy 覆盖
+      # 此步骤幂等：值未变时无副作用，值变更则原地更新
+
+      # S3_LIST_JSON — 单一 secret 包含所有存储后端的完整配置（含密钥）
+      # JSON 数组，每元素：id, name, bucket, region, endpoint, accessKeyId, secretAccessKey
+      # 新增/删除存储只需更新 GitHub secrets 中的 S3_LIST_JSON 值，无需修改 CI 脚本
+      # 使用 heredoc 传递，避免 JSON 中的双引号与 shell 字符串冲突导致内容截断
+      - working-directory: worker
+        run: |
+          cat << 'ENDOFSECRET' | npx wrangler secret put S3_LIST_JSON
+          ${{ secrets.S3_LIST_JSON }}
+          ENDOFSECRET
+
+      # 前端密码为可选：通过 env 传入，在 shell 中判空避免 if 条件解析错误
+      - working-directory: worker
+        run: |
+          if [ -n "$AUTH_PASSWORD" ]; then
+            printf '%s' "$AUTH_PASSWORD" | npx wrangler secret put AUTH_PASSWORD
+          fi
+        env:
+          AUTH_PASSWORD: ${{ secrets.AUTH_PASSWORD }}
+
+      # ---- 处理 D1 数据库配置 ----
+      # 始终删除本地 D1 配置块，避免 local-dev 假 ID 被部署到 Cloudflare
+      - working-directory: worker
+        run: sed -i '/^\[\[d1_databases\]\]/,/^database_id =/d' wrangler.toml
+
+      # D1_DATABASE_NAME 是分享功能开关：设置后自动查找同名数据库，找不到则创建
+      - working-directory: worker
+        if: ${{ env.D1_DATABASE_NAME != '' }}
+        run: |
+          echo "Looking up D1 database: $D1_DATABASE_NAME"
+          # 尝试 --json；旧版 wrangler 不支持则回退到文本解析
+          DB_ID=$(npx wrangler d1 list --json 2>/dev/null | jq -r ".[] | select(.name==\"$D1_DATABASE_NAME\") | .uuid" 2>/dev/null)
+          if [ -z "$DB_ID" ]; then
+            DB_ID=$(npx wrangler d1 list 2>&1 | grep -F "$D1_DATABASE_NAME" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+          fi
+          if [ -n "$DB_ID" ]; then
+            echo "Found existing database: $D1_DATABASE_NAME ($DB_ID)"
+          else
+            echo "Creating D1 database: $D1_DATABASE_NAME"
+            DB_ID=$(npx wrangler d1 create "$D1_DATABASE_NAME" 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+            if [ -z "$DB_ID" ]; then
+              echo "::error::Failed to create D1 database '$D1_DATABASE_NAME'"
+              exit 1
+            fi
+            echo "Created database: $D1_DATABASE_NAME ($DB_ID)"
+          fi
+
+          # 追加 D1 配置
+          cat >> wrangler.toml << D1EOF
+          [[d1_databases]]
+          binding = "DB"
+          database_name = "$D1_DATABASE_NAME"
+          database_id = "$DB_ID"
+          D1EOF
+
+      # ---- 应用 D1 数据库迁移（幂等，CREATE TABLE IF NOT EXISTS 保证安全） ----
+      - working-directory: worker
+        if: ${{ env.D1_DATABASE_NAME != '' }}
+        run: |
+          npx wrangler d1 execute "$D1_DATABASE_NAME" --remote --file=./db/schema.sql
+
+      # ---- 部署 Worker + 静态前端 ----
+      # 对同名 Worker 原地更新，产生新版本号，分析数据不受影响
+      - working-directory: worker
+        run: npx wrangler deploy
+
+  # =============================================================================
+  # Docker 构建 & 推送 Job — 构建镜像并推送到 Docker Hub
+  # =============================================================================
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      CONTAINER_DIR: ${{ secrets.CONTAINER_DIR }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/my-pan
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---- 服务器容器更新（仅当 CONTAINER_DIR secret 配置时执行） ----
+      - name: Deploy to server
+        if: ${{ env.CONTAINER_DIR != '' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            cd ${{ secrets.CONTAINER_DIR }}
+            sudo docker compose pull
+            sudo docker compose up -d --remove-orphans
+            sudo docker image prune -f

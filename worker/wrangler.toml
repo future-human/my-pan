@@ -1,0 +1,14 @@
+name = "my-pan"
+main = "src/index.ts"
+compatibility_date = "2026-05-25"
+
+[assets]
+directory = "../pages/public"
+
+# D1 数据库，仅用于本地测试
+# 部署：CI 先删除此块，再根据 D1_DATABASE_ID secret 是否存在决定是否加载数据库
+# 本地建表：npx wrangler d1 execute my-pan --local --file=./db/schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "my-pan"
+database_id = "local-dev"

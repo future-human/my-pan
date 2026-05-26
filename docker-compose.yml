@@ -1,0 +1,31 @@
+services:
+  my-pan:
+    build: .
+    container_name: my-pan
+    ports:
+      - "8787:8787"
+    environment:
+      # 存储配置 — JSON 数组，每元素包含 id/name/bucket/region/endpoint/accessKeyId/secretAccessKey
+      # 可选 capacity 字段，如 "100GB" 用于显示容器使用情况进度条
+      S3_LIST_JSON: |
+        [
+          {
+            "id": "default",
+            "name": "My Storage",
+            "bucket": "your-bucket",
+            "region": "your-region",
+            "endpoint": "https://your-endpoint",
+            "accessKeyId": "your-access-key",
+            "secretAccessKey": "your-secret-key"
+          }
+        ]
+      # 访问密码
+      AUTH_PASSWORD: "your-password"
+      # 可选：数据库路径
+      # DATABASE_PATH: /app/data/my-pan.db
+      # 可选：端口
+      # PORT: "8787"
+    volumes:
+      # 持久化 SQLite 数据库（分享记录）
+      - ./data:/app/data
+    restart: unless-stopped
