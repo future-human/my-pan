@@ -19,7 +19,7 @@
       position: fixed;
       inset: 0;
       background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8e 30%, #3b7ec4 60%, #2d5a8e 100%);
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 1000;
@@ -46,6 +46,12 @@
       color: #888;
       margin-bottom: 24px;
       font-size: 14px;
+    }
+
+    #login-loading {
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 24px;
     }
 
     .login-box input {

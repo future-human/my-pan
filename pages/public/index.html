@@ -16,12 +16,15 @@
 
   <!-- Login -->
   <div id="login-overlay">
-    <div class="login-box">
+    <div class="login-box" id="login-box">
       <h1>我的网盘</h1>
-      <p>请输入访问密码</p>
-      <input type="password" id="password-input" placeholder="密码" autofocus autocomplete="off">
-      <button type="button" id="login-btn">进入</button>
-      <div class="login-error" id="login-error">密码错误，请重试</div>
+      <div id="login-loading">加载中...</div>
+      <div id="login-form" style="display:none">
+        <p>请输入访问密码</p>
+        <input type="password" id="password-input" placeholder="密码" autofocus autocomplete="off">
+        <button type="button" id="login-btn">进入</button>
+        <div class="login-error" id="login-error">密码错误，请重试</div>
+      </div>
     </div>
   </div>
 

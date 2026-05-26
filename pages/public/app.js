@@ -169,11 +169,16 @@ async function doLogin(password) {
 }
 
 function showLogin() {
+  document.getElementById('login-loading').style.display = 'none';
+  document.getElementById('login-form').style.display = '';
   document.getElementById('login-overlay').style.display = 'flex';
 }
 
 function hideLogin() {
   document.getElementById('login-overlay').style.display = 'none';
+  // reset to loading state for next time
+  document.getElementById('login-loading').style.display = '';
+  document.getElementById('login-form').style.display = 'none';
 }
 
 document.getElementById('login-btn').addEventListener('click', async () => {
