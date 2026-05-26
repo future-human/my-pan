@@ -16,3 +16,10 @@ declare interface D1Result<T = unknown> {
   results?: T;
   success: boolean;
 }
+
+// Minimal KVNamespace interface — satisfied by both Cloudflare KV and FileKV
+declare interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+}

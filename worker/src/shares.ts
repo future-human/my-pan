@@ -454,19 +454,21 @@ export async function handleShareDownloadUrl(env: Env, key: string, shareId: str
     return json({ error: 'Share expired' }, 410);
   }
 
-  const rate = checkRateLimit(request);
-  if (!rate.allowed) {
-    return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
-  }
-  if (rate.delayMs > 0) {
-    await new Promise(r => setTimeout(r, rate.delayMs));
+  if (env.KV_BINDING) {
+    const rate = await checkRateLimit(env.KV_BINDING, request);
+    if (!rate.allowed) {
+      return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
+    }
+    if (rate.delayMs > 0) {
+      await new Promise(r => setTimeout(r, rate.delayMs));
+    }
   }
 
   if (sharePw !== row.password) {
-    recordAuthFailure(request);
+    if (env.KV_BINDING) await recordAuthFailure(env.KV_BINDING, request);
     return json({ error: 'Unauthorized' }, 401);
   }
-  recordAuthSuccess(request);
+  if (env.KV_BINDING) await recordAuthSuccess(env.KV_BINDING, request);
 
   // 验证目标文件在分享范围内：文件夹分享允许前缀内所有文件，单文件分享严格匹配
   const isFolder = row.file_key.endsWith('/');
@@ -521,16 +523,18 @@ export async function handleShareAccess(env: Env, shareId: string, request: Requ
   }
 
   if (providedPw) {
-    const rate = checkRateLimit(request);
-    if (!rate.allowed) {
-      return new Response(sharePageHtml(row.file_name, rate.error || 'Too many attempts', false), {
-        status: 429,
-        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': String(rate.retryAfter || 900) },
-      });
+    if (env.KV_BINDING) {
+      const rate = await checkRateLimit(env.KV_BINDING, request);
+      if (!rate.allowed) {
+        return new Response(sharePageHtml(row.file_name, rate.error || 'Too many attempts', false), {
+          status: 429,
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': String(rate.retryAfter || 900) },
+        });
+      }
     }
 
     if (providedPw === row.password) {
-      recordAuthSuccess(request);
+      if (env.KV_BINDING) await recordAuthSuccess(env.KV_BINDING, request);
       await env.DB!.prepare('UPDATE shares SET access_count = access_count + 1 WHERE id = ?').bind(shareId).run();
 
       const s = getStorage(env, row.storage_id);
@@ -565,7 +569,7 @@ export async function handleShareAccess(env: Env, shareId: string, request: Requ
         { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
       );
     }
-    recordAuthFailure(request);
+    if (env.KV_BINDING) await recordAuthFailure(env.KV_BINDING, request);
     return new Response(sharePageHtml(row.file_name, '密码错误，请重试', false), {
       status: 403,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -595,19 +599,21 @@ export async function handleSharePreviewUrl(
     return json({ error: 'Share expired' }, 410);
   }
 
-  const rate = checkRateLimit(request);
-  if (!rate.allowed) {
-    return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
-  }
-  if (rate.delayMs > 0) {
-    await new Promise(r => setTimeout(r, rate.delayMs));
+  if (env.KV_BINDING) {
+    const rate = await checkRateLimit(env.KV_BINDING, request);
+    if (!rate.allowed) {
+      return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
+    }
+    if (rate.delayMs > 0) {
+      await new Promise(r => setTimeout(r, rate.delayMs));
+    }
   }
 
   if (sharePw !== row.password) {
-    recordAuthFailure(request);
+    if (env.KV_BINDING) await recordAuthFailure(env.KV_BINDING, request);
     return json({ error: 'Unauthorized' }, 401);
   }
-  recordAuthSuccess(request);
+  if (env.KV_BINDING) await recordAuthSuccess(env.KV_BINDING, request);
 
   const s = getStorage(env, row.storage_id);
   const url = await generatePresignedUrl({

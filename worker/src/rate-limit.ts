@@ -1,6 +1,5 @@
 /**
- * IP-based brute-force protection — global Map survives warm Worker instances.
- * No external dependencies (KV, D1, etc.).
+ * IP-based brute-force protection — backed by Cloudflare KV.
  */
 
 interface RateEntry {
@@ -9,54 +8,52 @@ interface RateEntry {
   blockedUntil: number;
 }
 
-const rateMap = new Map<string, RateEntry>();
+const KV_PREFIX = 'rl:';
 
-const DELAY_THRESHOLD = 5;       // ≥ this: add artificial delay
-const BLOCK_THRESHOLD = 10;      // ≥ this: block entirely
+const DELAY_THRESHOLD = 5;
+const BLOCK_THRESHOLD = 10;
 const BLOCK_DURATION = 15 * 60 * 1000; // 15 min
 const WINDOW_MS = 60 * 60 * 1000;      // 1 hour — reset count after this
-const MAX_ENTRIES = 10000;       // cap to prevent unbounded growth
-
-let requestCount = 0;
+const KV_TTL = Math.ceil(WINDOW_MS / 1000) + 60; // slightly over 1h for clock skew
 
 function getClientIP(request: Request): string {
-  // Cloudflare 注入的真实客户端 IP，Worker 内不受 X-Forwarded-For 欺骗
   return request.headers.get('CF-Connecting-IP') || 'unknown';
 }
 
-function cleanup() {
-  const now = Date.now();
-  for (const [ip, entry] of rateMap) {
-    if (now > entry.blockedUntil && now - entry.firstFailure > WINDOW_MS) {
-      rateMap.delete(ip);
-    } else if (entry.blockedUntil === 0 && entry.failures === 0 && now - entry.firstFailure > WINDOW_MS) {
-      rateMap.delete(ip);
+function parseEntry(raw: string | null): RateEntry | null {
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw);
+    if (typeof obj.failures === 'number' && typeof obj.firstFailure === 'number' && typeof obj.blockedUntil === 'number') {
+      return obj;
     }
-  }
+  } catch { /* ignore corrupt data */ }
+  return null;
+}
+
+function makeKey(ip: string): string {
+  return KV_PREFIX + ip;
 }
 
 /**
- * 检查该 IP 是否被限流或封锁。
- * 返回 { allowed, delayMs, error? }——
- *   allowed=false  → 请求应被拒绝（IP 封锁中）
- *   delayMs > 0    → 请求应有延迟（惩罚性减速）
+ * Check whether this request is rate-limited or blocked.
+ * — allowed=false → reject with 429
+ * — delayMs > 0   → apply artificial delay before processing
  */
-export function checkRateLimit(request: Request): { allowed: boolean; delayMs: number; retryAfter?: number; error?: string } {
+export async function checkRateLimit(kv: KVNamespace, request: Request): Promise<{
+  allowed: boolean; delayMs: number; retryAfter?: number; error?: string;
+}> {
   const ip = getClientIP(request);
-
-  requestCount++;
-  if (requestCount % 500 === 0) cleanup();
-
   const now = Date.now();
-  let entry = rateMap.get(ip);
+
+  const raw = await kv.get(makeKey(ip));
+  let entry = parseEntry(raw);
 
   if (!entry || now - entry.firstFailure > WINDOW_MS) {
-    if (rateMap.size >= MAX_ENTRIES) cleanup();
     entry = { failures: 0, firstFailure: now, blockedUntil: 0 };
-    rateMap.set(ip, entry);
   }
 
-  // IP 封锁中
+  // IP is blocked
   if (entry.blockedUntil > 0 && now < entry.blockedUntil) {
     const remaining = Math.ceil((entry.blockedUntil - now) / 1000);
     return {
@@ -67,13 +64,16 @@ export function checkRateLimit(request: Request): { allowed: boolean; delayMs: n
     };
   }
 
-  // 封锁期已过，重置
+  // Block expired, reset
   if (entry.blockedUntil > 0) {
     entry.blockedUntil = 0;
     entry.failures = 0;
   }
 
-  // 递增延迟：2^(n-5) 秒，最长 30 秒
+  // Persist current state
+  await kv.put(makeKey(ip), JSON.stringify(entry), { expirationTtl: KV_TTL });
+
+  // Exponential delay: 2^(n-5) sec, capped at 30s
   if (entry.failures >= DELAY_THRESHOLD) {
     const delayMs = Math.min(Math.pow(2, entry.failures - DELAY_THRESHOLD) * 1000, 30000);
     return { allowed: true, delayMs };
@@ -82,20 +82,28 @@ export function checkRateLimit(request: Request): { allowed: boolean; delayMs: n
   return { allowed: true, delayMs: 0 };
 }
 
-/** 记录一次认证失败，递增计数器。超过阈值则封锁 IP。 */
-export function recordAuthFailure(request: Request) {
+/** Record an auth failure. Increments counter; blocks IP if threshold exceeded. */
+export async function recordAuthFailure(kv: KVNamespace, request: Request) {
   const ip = getClientIP(request);
-  const entry = rateMap.get(ip);
-  if (!entry) return;
+  const now = Date.now();
+  const raw = await kv.get(makeKey(ip));
+  let entry = parseEntry(raw);
 
-  entry.failures++;
-  if (entry.failures >= BLOCK_THRESHOLD) {
-    entry.blockedUntil = Date.now() + BLOCK_DURATION;
+  if (!entry || now - entry.firstFailure > WINDOW_MS) {
+    entry = { failures: 1, firstFailure: now, blockedUntil: 0 };
+  } else {
+    entry.failures++;
   }
+
+  if (entry.failures >= BLOCK_THRESHOLD) {
+    entry.blockedUntil = now + BLOCK_DURATION;
+  }
+
+  await kv.put(makeKey(ip), JSON.stringify(entry), { expirationTtl: KV_TTL });
 }
 
-/** 认证成功后清除记录，恢复正常访问。 */
-export function recordAuthSuccess(request: Request) {
+/** Clear all rate-limiting state for this IP on successful auth. */
+export async function recordAuthSuccess(kv: KVNamespace, request: Request) {
   const ip = getClientIP(request);
-  rateMap.delete(ip);
+  await kv.delete(makeKey(ip));
 }

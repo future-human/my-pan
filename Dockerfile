@@ -22,6 +22,7 @@ RUN mkdir -p /app/data
 ENV NODE_ENV=production
 ENV PORT=8787
 ENV DATABASE_PATH=/app/data/my-pan.db
+ENV RATE_LIMIT_PATH=/app/data/rate-limits.json
 
 EXPOSE 8787
 

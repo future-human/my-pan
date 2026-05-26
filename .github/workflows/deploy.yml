@@ -72,6 +72,10 @@ jobs:
       - working-directory: worker
         run: sed -i '/^\[\[d1_databases\]\]/,/^database_id =/d' wrangler.toml
 
+      # 始终删除本地 KV 配置块
+      - working-directory: worker
+        run: sed -i '/^\[\[kv_namespaces\]\]/,/^id =/d' wrangler.toml
+
       # D1_DATABASE_NAME 是分享功能开关：设置后自动查找同名数据库，找不到则创建
       - working-directory: worker
         if: ${{ env.D1_DATABASE_NAME != '' }}
@@ -101,6 +105,18 @@ jobs:
           database_name = "$D1_DATABASE_NAME"
           database_id = "$DB_ID"
           D1EOF
+
+      # KV_BINDING_ID 是速率限制开关：设置后自动注入 KV 绑定
+      - working-directory: worker
+        if: ${{ env.KV_BINDING_ID != '' }}
+        env:
+          KV_BINDING_ID: ${{ secrets.KV_BINDING_ID }}
+        run: |
+          cat >> wrangler.toml << KVEOF
+          [[kv_namespaces]]
+          binding = "KV_BINDING"
+          id = "$KV_BINDING_ID"
+          KVEOF
 
       # ---- 应用 D1 数据库迁移（幂等，CREATE TABLE IF NOT EXISTS 保证安全） ----
       - working-directory: worker

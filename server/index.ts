@@ -4,16 +4,20 @@ import { handleCreateShare, handleListShares, handleDeleteShare, handleBatchDele
 import { CORS_HEADERS, validateKey } from '../worker/src/utils';
 import { checkRateLimit, recordAuthFailure, recordAuthSuccess } from '../worker/src/rate-limit';
 import { DBAdapter } from './db';
+import { FileKV } from './file-kv';
 
 async function bootstrap() {
   const PORT = parseInt(process.env.PORT || '8787', 10);
   const dbPath = process.env.DATABASE_PATH || './data/my-pan.db';
+  const rateLimitPath = process.env.RATE_LIMIT_PATH || './data/rate-limits.json';
   const db = await DBAdapter.create(dbPath);
+  const kv = new FileKV(rateLimitPath);
 
   const env: Env = {
     S3_LIST_JSON: process.env.S3_LIST_JSON,
     AUTH_PASSWORD: process.env.AUTH_PASSWORD,
     DB: db as unknown as Env['DB'],
+    KV_BINDING: kv as unknown as Env['KV_BINDING'],
   };
 
 // ---- Adapters ----
@@ -141,20 +145,24 @@ async function authMiddleware(req: express.Request, res: express.Response, next:
   if (!password) return next();
 
   const r = adaptRequest(req);
-  const rate = checkRateLimit(r as unknown as Request);
-  if (!rate.allowed) {
-    return res.status(429).json({ error: rate.error });
-  }
-  if (rate.delayMs > 0) {
-    await new Promise(rs => setTimeout(rs, rate.delayMs));
+  if (env.KV_BINDING) {
+    const rate = await checkRateLimit(env.KV_BINDING, r as unknown as Request);
+    if (!rate.allowed) {
+      return res.status(429)
+        .set(rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {})
+        .json({ error: rate.error });
+    }
+    if (rate.delayMs > 0) {
+      await new Promise(rs => setTimeout(rs, rate.delayMs));
+    }
   }
 
   if (req.headers['x-auth-password'] === password) {
-    recordAuthSuccess(r as unknown as Request);
+    if (env.KV_BINDING) await recordAuthSuccess(env.KV_BINDING, r as unknown as Request);
     return next();
   }
 
-  recordAuthFailure(r as unknown as Request);
+  if (env.KV_BINDING) await recordAuthFailure(env.KV_BINDING, r as unknown as Request);
   return res.status(401).json({ error: 'Unauthorized' });
 }
 

@@ -24,6 +24,7 @@ export interface Env {
   S3_LIST_JSON?: string;
   AUTH_PASSWORD?: string;
   DB?: D1Database;
+  KV_BINDING?: KVNamespace;
 }
 
 function parseJson(json: string): unknown | null {
@@ -79,24 +80,26 @@ export function getStorage(env: Env, id?: string | null): StorageConfig {
   return storages[0];
 }
 
-async function checkAuth(request: Request, password?: string): Promise<Response | true> {
+async function checkAuth(request: Request, password?: string, kv?: KVNamespace): Promise<Response | true> {
   if (!password) return true;
 
-  const rate = checkRateLimit(request);
-  if (!rate.allowed) {
-    return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
-  }
+  if (kv) {
+    const rate = await checkRateLimit(kv, request);
+    if (!rate.allowed) {
+      return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
+    }
 
-  if (rate.delayMs > 0) {
-    await new Promise(r => setTimeout(r, rate.delayMs));
+    if (rate.delayMs > 0) {
+      await new Promise(r => setTimeout(r, rate.delayMs));
+    }
   }
 
   if (request.headers.get('X-Auth-Password') === password) {
-    recordAuthSuccess(request);
+    if (kv) await recordAuthSuccess(kv, request);
     return true;
   }
 
-  recordAuthFailure(request);
+  if (kv) await recordAuthFailure(kv, request);
   return json({ error: 'Unauthorized' }, 401);
 }
 
@@ -149,7 +152,7 @@ export default {
         } catch { return json({ error: 'Invalid key encoding' }, 400); }
       }
 
-      const authResult = await checkAuth(request, env.AUTH_PASSWORD);
+      const authResult = await checkAuth(request, env.AUTH_PASSWORD, env.KV_BINDING);
       if (authResult !== true) return authResult;
 
       // GET /api/storages — list available storages (no credentials in response)

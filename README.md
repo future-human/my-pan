@@ -7,6 +7,7 @@
 ## ✨ 特性
 
 - **多存储管理** — 同时管理多个 S3 兼容存储后端，前端一键切换
+- **暴力破解防护** — IP 级别速率限制，失败递增延迟 + 封锁机制（CloudFlare KV / 文件持久化）
 - **文件预览** — 图片、PDF、视频、音频、文本等在弹窗中预览
 - **文件分享** — 为文件/文件夹生成带密码保护的分享链接，支持过期时间和二维码
 - **文件夹管理** — 新建、进入、下载、删除文件夹，面包屑导航，多选批量操作
@@ -101,16 +102,33 @@
 在 Fork 后的仓库中，进入 **Settings → Secrets and variables → Actions**，添加以下 secrets：
 
 
-| Secret                  | 说明                 | 必填  |
-| ----------------------- | ------------------ | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | CloudFlare 账户 ID   | 是   |
-| `CLOUDFLARE_API_TOKEN`  | CloudFlare API 令牌  | 是   |
-| `S3_LIST_JSON`          | 完整存储配置 JSON（含密钥）   | 是   |
-| `AUTH_PASSWORD`         | 前端访问密码             | 否   |
-| `D1_DATABASE_NAME`      | D1 数据库名称，设置后启用分享功能 | 否   |
+| Secret                  | 说明                         | 必填  |
+| ----------------------- | -------------------------- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | CloudFlare 账户 ID           | 是   |
+| `CLOUDFLARE_API_TOKEN`  | CloudFlare API 令牌          | 是   |
+| `S3_LIST_JSON`          | 完整存储配置 JSON（含密钥）           | 是   |
+| `AUTH_PASSWORD`         | 前端访问密码                     | 否   |
+| `D1_DATABASE_NAME`      | D1 数据库名称，设置后启用分享功能         | 否   |
+| `KV_BINDING_ID`         | KV 命名空间 ID，设置后启用 IP 速率限制   | 否   |
 
 
-### 5. 触发部署
+### 5. 启用速率限制（可选）
+
+> 速率限制为 IP 级别的暴力破解防护：同一 IP 失败 ≥5 次开始递增延迟（2ⁿ⁻⁵ 秒，上限 30s），≥10 次封锁 15 分钟。密码正确后立即清除计数。
+
+<details>
+<summary>点击展开 KV 配置步骤</summary>
+
+1. 在 CloudFlare Dashboard → Workers 和 Pages → KV → 创建命名空间，名称随意（如 `my-pan-rate-limit`）
+2. 创建后复制命名空间 ID（类似 `47f15a4c7fdc4ce9958fc0f46a4c77f5`）
+3. 在 GitHub Secrets 中添加 `KV_BINDING_ID` = 该 ID
+4. CI 部署时自动注入 KV 绑定，无需手动修改 `wrangler.toml`
+
+未配置 `KV_BINDING_ID` 时速率限制静默跳过，不影响正常使用。
+
+</details>
+
+### 6. 触发部署
 
 - **自动部署**：push 到 master 分支自动触发
 - **手动部署**：Actions 页面 → Deploy Worker → Run workflow
@@ -144,7 +162,7 @@ S3_LIST_JSON = '[{"id":"oracle","name":"Oracle Cloud","capacity":"20GB","bucket"
 AUTH_PASSWORD = your-password
 ```
 
-连接远程 D1 数据库，修改 `worker/wrangler.toml` 中 `[[d1_databases]]` 
+如需速率限制，在 `worker/wrangler.toml` 中将 `[[kv_namespaces]]` 的 `id` 替换为真实 KV 命名空间 ID。不配置则速率限制静默跳过。
 
 ### 3. 本地调试
 
@@ -205,17 +223,21 @@ npm install
 S3_LIST_JSON = '[{"id":"oracle","name":"Oracle Cloud","capacity":"20GB","bucket":"bucket-xxx","region":"ca-toronto-1","endpoint":"https://xxx.oraclecloud.com","accessKeyId":"your-access-key","secretAccessKey":"your-secret-key"}]'
 AUTH_PASSWORD = your-password
 PORT = 8787
+# DATABASE_PATH = ./data/my-pan.db
+# RATE_LIMIT_PATH = ./data/rate-limits.json
 ```
 
 
-| 变量              | 说明               | 必填  |
-| --------------- | ---------------- | --- |
-| `S3_LIST_JSON`  | 完整存储配置 JSON（含密钥） | 是   |
-| `AUTH_PASSWORD` | 前端访问密码           | 否   |
-| `PORT`          | 监听端口，默认 8787     | 否   |
+| 变量               | 说明                    | 必填  |
+| ---------------- | --------------------- | --- |
+| `S3_LIST_JSON`   | 完整存储配置 JSON（含密钥）      | 是   |
+| `AUTH_PASSWORD`  | 前端访问密码                | 否   |
+| `PORT`           | 监听端口，默认 8787          | 否   |
+| `DATABASE_PATH`  | SQLite 数据库路径，默认 `./data/my-pan.db` | 否   |
+| `RATE_LIMIT_PATH` | 速率限制持久化文件路径，默认 `./data/rate-limits.json` | 否   |
 
 
-分享功能基于 SQLite（`sql.js`，纯 JS 实现，零原生编译依赖），数据库文件自动创建于 `server/data/my-pan.db`，无需额外配置。
+分享功能基于 SQLite（`sql.js`，纯 JS 实现，零原生编译依赖），数据库文件自动创建于 `server/data/my-pan.db`，无需额外配置。速率限制状态持久化在 `server/data/rate-limits.json`，容器/进程重启不丢失。
 
 ### 3. 启动
 
@@ -317,7 +339,10 @@ services:
       AUTH_PASSWORD: "your-password"
       # 可选：端口（默认 8787，若修改需同步 ports）
       # PORT: "8787"
+      # 可选：速率限制持久化路径（默认 /app/data/rate-limits.json）
+      # RATE_LIMIT_PATH: /app/data/rate-limits.json
     volumes:
+      # 持久化 SQLite 数据库 + 速率限制状态
       - ./data:/app/data
     restart: unless-stopped
 ```
@@ -345,12 +370,13 @@ docker compose up -d
 ### 5. 环境变量参考
 
 
-| 变量              | 必填  | 默认值                   | 说明                |
-| --------------- | --- | --------------------- | ----------------- |
-| `S3_LIST_JSON`  | 是   | —                     | 存储配置 JSON 数组（含密钥） |
-| `AUTH_PASSWORD` | 否   | 无                     | 不设置则跳过鉴权          |
-| `PORT`          | 否   | `8787`                | 容器内监听端口           |
-| `DATABASE_PATH` | 否   | `/app/data/my-pan.db` | SQLite 数据库路径      |
+| 变量               | 必填  | 默认值                          | 说明                |
+| ---------------- | --- | ---------------------------- | ----------------- |
+| `S3_LIST_JSON`   | 是   | —                            | 存储配置 JSON 数组（含密钥） |
+| `AUTH_PASSWORD`  | 否   | 无                            | 不设置则跳过鉴权          |
+| `PORT`           | 否   | `8787`                       | 容器内监听端口           |
+| `DATABASE_PATH`  | 否   | `/app/data/my-pan.db`        | SQLite 数据库路径      |
+| `RATE_LIMIT_PATH` | 否   | `/app/data/rate-limits.json` | 速率限制持久化文件路径     |
 
 
 ---
@@ -375,6 +401,28 @@ docker compose up -d
 ### 使用
 
 在主界面按认证密码登录后，文件行和右键菜单中会出现「分享」按钮。可设置分享密码（6 位字母/数字）、过期时间（1 小时 ~ 永不过期），并生成分享二维码。
+
+## 🛡️ 速率限制
+
+对所有鉴权端点（主密码、分享密码）进行 IP 级别速率限制，防止暴力破解：
+
+| 失败次数 | 行为 |
+| ------- | --- |
+| < 5 次  | 正常响应 |
+| 5 ~ 9 次 | 递增延迟：2ⁿ⁻⁵ 秒（2s → 4s → 8s → 16s），上限 30s |
+| ≥ 10 次 | 封锁 15 分钟，返回 429 + `Retry-After` 头 |
+
+密码正确后立即重置该 IP 的所有计数。1 小时内无失败记录自动清理。
+
+**各部署方式的持久化**：
+
+| 部署方式 | 存储后端 | 重启影响 |
+| ------- | ------ | --- |
+| CloudFlare Workers | KV（需配置 `KV_BINDING_ID`） | 无影响 |
+| Docker | 文件（`/app/data/rate-limits.json`，挂载卷） | 无影响 |
+| 自建服务器 | 文件（`./data/rate-limits.json`） | 无影响 |
+
+未配置存储后端时速率限制静默跳过，不影响正常使用。
 
 ## 📖 API 端点
 
