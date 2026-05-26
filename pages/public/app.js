@@ -28,14 +28,12 @@ async function init() {
     token = savedToken;
     const ok = await tryAuth();
     if (ok) {
-      console.log('[my-pan] 已保存 token 有效，直接进入');
       hideLogin();
       await loadStorages();
       checkSharing();
       loadFiles();
       return;
     }
-    console.log('[my-pan] 已保存 token 失效');
     setCookie('my-pan_token', '', -1);
     token = '';
   }
