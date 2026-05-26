@@ -125,10 +125,12 @@ STORAGES_CONFIG = '[{"id":"oracle","name":"Oracle","bucket":"...","region":"..."
 
 ### GitHub Actions CI
 
-- `STORAGES` 作为 GitHub Variable（非敏感）
-- `STORAGE_ORACLE_KEY_ID`、`STORAGE_ORACLE_SECRET` 等作为 GitHub Secrets
-- CI 通过 `wrangler secret put` 同步到 CloudFlare（[deploy.yml](.github/workflows/deploy.yml) 中有模板可复制）
-- 旧版 `S3_*` secrets 保留向后兼容
+- `S3_LIST_JSON` — 单一 GitHub Secret，包含所有存储后端的完整 JSON 数组（含密钥），CI 通过 heredoc 写入 `wrangler secret put S3_LIST_JSON`
+- `AUTH_PASSWORD` — 可选 GitHub Secret，前端访问密码
+- `D1_DATABASE_NAME` — 可选 GitHub Secret，设置后启用分享功能（CI 自动查找/创建 D1 数据库并追加配置到 wrangler.toml）
+- `KV_BINDING_ID` — 可选 GitHub Secret，设置后启用 IP 速率限制（CI 自动追加 KV 绑定到 wrangler.toml）
+- Docker 相关 secrets：`DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN`、`SERVER_IP`、`SERVER_USER`、`SERVER_SSH_KEY`、`SERVER_PORT`、`CONTAINER_DIR`
+- 详见 [deploy.yml](.github/workflows/deploy.yml)
 
 ## File structure
 
