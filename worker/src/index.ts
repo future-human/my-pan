@@ -80,26 +80,36 @@ export function getStorage(env: Env, id?: string | null): StorageConfig {
   return storages[0];
 }
 
+const TOKEN_PREFIX = 'token:';
+const TOKEN_TTL = 7 * 24 * 3600; // 7 days
+
+async function createSessionToken(kv: KVNamespace): Promise<string> {
+  const token = crypto.randomUUID();
+  await kv.put(TOKEN_PREFIX + token, '1', { expirationTtl: TOKEN_TTL });
+  return token;
+}
+
+async function validateToken(kv: KVNamespace, token: string): Promise<boolean> {
+  const val = await kv.get(TOKEN_PREFIX + token);
+  if (!val) return false;
+  // Refresh TTL on each use
+  await kv.put(TOKEN_PREFIX + token, '1', { expirationTtl: TOKEN_TTL });
+  return true;
+}
+
+async function revokeToken(kv: KVNamespace, token: string): Promise<void> {
+  await kv.delete(TOKEN_PREFIX + token);
+}
+
 async function checkAuth(request: Request, password?: string, kv?: KVNamespace): Promise<Response | true> {
   if (!password) return true;
 
-  if (kv) {
-    const rate = await checkRateLimit(kv, request);
-    if (!rate.allowed) {
-      return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
-    }
-
-    if (rate.delayMs > 0) {
-      await new Promise(r => setTimeout(r, rate.delayMs));
-    }
+  const token = request.headers.get('X-Auth-Token');
+  if (token && kv) {
+    const valid = await validateToken(kv, token);
+    return valid ? true : json({ error: 'Unauthorized' }, 401);
   }
 
-  if (request.headers.get('X-Auth-Password') === password) {
-    if (kv) await recordAuthSuccess(kv, request);
-    return true;
-  }
-
-  if (kv) await recordAuthFailure(kv, request);
   return json({ error: 'Unauthorized' }, 401);
 }
 
@@ -120,6 +130,40 @@ export default {
     }
 
     try {
+      // POST /api/login — token-based auth (public, rate-limited)
+      if (path === '/api/login' && request.method === 'POST') {
+        const pw = env.AUTH_PASSWORD;
+        if (!pw) {
+          if (env.KV_BINDING) {
+            const token = await createSessionToken(env.KV_BINDING);
+            return json({ token });
+          }
+          return json({ token: '' });
+        }
+        let body: { password?: string } = {};
+        try { body = await request.json(); } catch { /* keep empty */ }
+        const providedPw = body.password || '';
+        if (env.KV_BINDING) {
+          const rate = await checkRateLimit(env.KV_BINDING, request);
+          if (!rate.allowed) {
+            return json({ error: rate.error }, 429, rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {});
+          }
+          if (rate.delayMs > 0) {
+            await new Promise(r => setTimeout(r, rate.delayMs));
+          }
+        }
+        if (providedPw === pw) {
+          if (env.KV_BINDING) {
+            await recordAuthSuccess(env.KV_BINDING, request);
+            const token = await createSessionToken(env.KV_BINDING);
+            return json({ token });
+          }
+          return json({ token: '' });
+        }
+        if (env.KV_BINDING) await recordAuthFailure(env.KV_BINDING, request);
+        return json({ error: 'Unauthorized' }, 401);
+      }
+
       // GET/POST /s/:id — share access page (public, no main password)
       const shareMatch = path.match(/^\/s\/([a-f0-9-]+)$/);
       if (shareMatch && (request.method === 'GET' || request.method === 'POST')) {
@@ -238,6 +282,13 @@ export default {
       if (path === '/api/shares/batch-delete' && request.method === 'POST') {
         if (!env.DB) return json({ error: 'Sharing not configured' }, 503);
         return await handleBatchDeleteShares(request, env);
+      }
+
+      // POST /api/logout — revoke token
+      if (path === '/api/logout' && request.method === 'POST') {
+        const token = request.headers.get('X-Auth-Token');
+        if (token && env.KV_BINDING) await revokeToken(env.KV_BINDING, token);
+        return json({ ok: true });
       }
 
       return json({ error: 'Not Found' }, 404);

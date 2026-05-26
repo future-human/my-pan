@@ -431,6 +431,8 @@ docker compose up -d
 
 | 端点                              | 方法       | 鉴权  | 说明                                                           |
 | ------------------------------- | -------- | --- | ------------------------------------------------------------ |
+| `/api/login`                    | POST     | 公开  | 密码换取 Token，Body: `{password}`，返回 `{token}`                    |
+| `/api/logout`                   | POST     | 需要  | 吊销当前 Token |
 | `/api/storages`                 | GET      | 需要  | 返回可用存储列表（id/name/capacity/capacityUnit，不含密钥）                 |
 | `/api/files?storage=xx`         | GET      | 需要  | 列出存储桶中所有文件（S3 XML → JSON）                                    |
 | `/api/files/:key?storage=xx`    | GET      | 需要  | 获取文件的预签名下载 URL                                               |
@@ -449,7 +451,7 @@ docker compose up -d
 | `/s/:id`                        | GET/POST | 公开  | 分享访问页                                                        |
 
 
-所有鉴权端点通过 `X-Auth-Password` 头传递密码。无密码时不校验。
+首次登录时 `POST /api/login` 发送密码（JSON body）换取 Token（UUID，TTL 7 天，每次使用自动续期）。后续所有鉴权请求通过 `X-Auth-Token` 头传递 Token。未配置密码时不校验。
 
 ## 🚀 技术栈
 

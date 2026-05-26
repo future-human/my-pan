@@ -28,10 +28,10 @@ Browser ─── Worker (API + Static Assets)
   └─ GET presigned URL ────────→ S3 (direct download)
 ```
 
-- **Worker** (`worker/src/index.ts`) — 路由分发 + 文件操作 handler。定义 `StorageConfig` / `StorageInfo` / `Env` 接口，`getStorages(env)` 三级解析存储配置，`getStorage(env, id?)` 按 ID 查找。API 端点：list / download-url / preview-url / upload-url / delete / rename / batch-delete 均接受 `StorageConfig` 参数而非 `Env`。鉴权通过 `X-Auth-Password` 头。新增 `GET /api/storages` 返回不含密钥的存储列表。速率限制 (`worker/src/rate-limit.ts`) — 基于 IP 的防暴力破解，递增延迟 + 15 分钟封锁。
+- **Worker** (`worker/src/index.ts`) — 路由分发 + 文件操作 handler。定义 `StorageConfig` / `StorageInfo` / `Env` 接口，`getStorages(env)` 三级解析存储配置，`getStorage(env, id?)` 按 ID 查找。API 端点：login / logout / list / download-url / preview-url / upload-url / delete / rename / batch-delete 均接受 `StorageConfig` 参数而非 `Env`。鉴权通过 Token 机制：`POST /api/login` 密码换取 Token（UUID，存储在 KV 中，TTL 7 天），后续请求通过 `X-Auth-Token` 头传递 Token。速率限制 (`worker/src/rate-limit.ts`) — 基于 IP 的防暴力破解，递增延迟 + 15 分钟封锁。
 - **SigV4 签名** (`worker/src/s3-auth.ts`) — `signRequest()` 用于 Worker→S3 代理请求（Authorization header）；`generatePresignedUrl()` 用于签发浏览器直连 S3 的 URL（query-string auth），支持 `response-content-disposition`、`response-content-type` 覆写。均使用 HMAC-SHA256 via Web Crypto API。`rfc3986()` 编码比 `encodeURIComponent` 更严格（多编码 `!'()*`）。
 - **分享功能** (`worker/src/shares.ts`) — 基于 CloudFlare D1 数据库，密码明文存储，支持过期时间、访问计数、`storage_id` 列（记录分享属于哪个存储后端）。通过 `/s/:id` 提供公开访问页，内建预览弹窗（iframe + 编码选择）。可插拔设计：D1 未配置时分享功能自动隐藏。`listShareFolderFiles()` 接受 `StorageConfig` 而非 `Env`。
-- **静态前端** (`pages/public/`) — 五文件结构：`index.html`（纯 HTML 结构）、`style.css`（样式）、`app.js`（交互逻辑）、`qrcode.js`（QR 码生成库）、`column-resizer.js`（列宽拖拽）。单页应用：密码登录、存储源选择器（仅多存储时显示）、全局拖拽/点击上传（XHR 直连 S3 支持进度条）、预签名 URL 下载/预览（iframe 弹窗 + 字符集选择）、文件列表排序（文件夹和文件分别排序、列宽可拖拽调整）、面包屑导航、多选批量操作（下载/删除）、右键菜单（分享/预览/下载/重命名/删除）、分享管理（创建/列表/删除分享 + QR 码生成）、搜索高亮。`fileApi(path)` 辅助函数统一在文件操作 URL 中追加 `?storage=` 参数。存储选择持久化到 localStorage (`my-pan_storage`)。由 Worker 的 Static Assets 功能托管，与 API 同域，无需 CORS 或跨域配置。
+- **静态前端** (`pages/public/`) — 五文件结构：`index.html`（纯 HTML 结构）、`style.css`（样式）、`app.js`（交互逻辑）、`qrcode.js`（QR 码生成库）、`column-resizer.js`（列宽拖拽）。单页应用：Token 登录（`POST /api/login` 密码换取 Token，存 cookie `my-pan_token`）、存储源选择器（仅多存储时显示）、全局拖拽/点击上传（XHR 直连 S3 支持进度条）、预签名 URL 下载/预览（iframe 弹窗 + 字符集选择）、文件列表排序（文件夹和文件分别排序、列宽可拖拽调整）、面包屑导航、多选批量操作（下载/删除）、右键菜单（分享/预览/下载/重命名/删除）、分享管理（创建/列表/删除分享 + QR 码生成）、搜索高亮。`fileApi(path)` 辅助函数统一在文件操作 URL 中追加 `?storage=` 参数。存储选择持久化到 localStorage (`my-pan_storage`)。由 Worker 的 Static Assets 功能托管，与 API 同域，无需 CORS 或跨域配置。
 
 ## Multi-storage config resolution
 

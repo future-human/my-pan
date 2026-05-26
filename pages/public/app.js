@@ -1,5 +1,5 @@
 // ===== State =====
-let password = '';
+let token = '';
 let files = [];
 let selectedKeys = new Set();
 let selectedFolders = new Set();
@@ -22,25 +22,25 @@ function fileApi(path) {
 
 // ===== Init =====
 async function init() {
-  // 先尝试已保存的密码
-  const savedPw = getCookie('my-pan_pw');
-  if (savedPw) {
-    password = savedPw;
+  // 先尝试已保存的 token
+  const savedToken = getCookie('my-pan_token');
+  if (savedToken) {
+    token = savedToken;
     const ok = await tryAuth();
     if (ok) {
-      console.log('[my-pan] 已保存密码有效，直接进入');
+      console.log('[my-pan] 已保存 token 有效，直接进入');
       hideLogin();
       await loadStorages();
       checkSharing();
       loadFiles();
       return;
     }
-    console.log('[my-pan] 已保存密码失效');
-    setCookie('my-pan_pw', '', -1);
-    password = '';
+    console.log('[my-pan] 已保存 token 失效');
+    setCookie('my-pan_token', '', -1);
+    token = '';
   }
 
-  // 已保存密码失效或无保存密码 → 尝试空密码（服务端未配置密码时直接进入）
+  // 已保存 token 失效或无保存 → 尝试无密码模式（服务端未配置密码时直接进入）
   const ok = await tryAuth();
   if (ok) {
     console.log('[my-pan] 无密码模式，直接进入');
@@ -60,7 +60,7 @@ async function init() {
 async function loadStorages() {
   try {
     const resp = await fetch(apiBase + '/api/storages', {
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (resp.ok) {
       storages = await resp.json();
@@ -132,7 +132,7 @@ async function loadStorages() {
 async function checkSharing() {
   try {
     const resp = await fetch(apiBase + '/api/shares/status', {
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -147,10 +147,27 @@ async function checkSharing() {
 }
 
 async function tryAuth() {
-  const resp = await fetch(fileApi('/api/files'), {
-    headers: { 'X-Auth-Password': password },
-  });
+  // If we already have a token, validate it by calling an authenticated endpoint
+  if (token) {
+    const resp = await fetch(fileApi('/api/files'), {
+      headers: { 'X-Auth-Token': token },
+    });
+    return resp.status !== 401;
+  }
+  // No token and no password configured — server will let us through
+  const resp = await fetch(fileApi('/api/files'));
   return resp.status !== 401;
+}
+
+async function doLogin(password) {
+  const resp = await fetch(apiBase + '/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  return data.token;
 }
 
 function showLogin() {
@@ -165,8 +182,8 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   const btn = document.getElementById('login-btn');
   const input = document.getElementById('password-input');
   const errEl = document.getElementById('login-error');
-  password = input.value;
-  if (!password) { input.classList.add('shake'); input.focus(); return; }
+  const pw = input.value;
+  if (!pw) { input.classList.add('shake'); input.focus(); return; }
 
   // 进入加载状态
   btn.disabled = true;
@@ -174,9 +191,9 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   errEl.style.display = 'none';
   input.classList.remove('shake');
 
-  let ok;
+  let newToken;
   try {
-    ok = await tryAuth();
+    newToken = await doLogin(pw);
   } catch (err) {
     console.error('[my-pan] 登录: 网络错误', err);
     errEl.textContent = '网络错误，请检查连接';
@@ -185,10 +202,11 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     btn.textContent = '进入';
     return;
   }
-  if (ok) {
+  if (newToken !== null) {
+    token = newToken;
     document.getElementById('logout-btn').style.display = '';
     hideLogin();
-    setCookie('my-pan_pw', password, 30);
+    if (token) setCookie('my-pan_token', token, 7);
     await loadStorages();
     checkSharing();
     loadFiles();
@@ -226,7 +244,7 @@ async function loadFiles() {
   }
   try {
     const resp = await fetch(fileApi('/api/files'), {
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (resp.status === 401) { showLogin(); return false; }
     if (!resp.ok) throw new Error('API error: ' + resp.status);
@@ -667,7 +685,7 @@ function downloadViaIframe(url) {
 async function downloadFile(key) {
   try {
     const resp = await fetch(fileApi('/api/files/' + encodeURIComponent(key)), {
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (!resp.ok) throw new Error('获取下载链接失败: ' + resp.status);
     const { url } = await resp.json();
@@ -684,7 +702,7 @@ async function previewFile(key) {
   try {
     const charset = document.getElementById('preview-charset').value;
     const resp = await fetch(fileApi('/api/preview/' + encodeURIComponent(key) + '?charset=' + charset), {
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (!resp.ok) throw new Error('获取预览链接失败: ' + resp.status);
     const { url, text } = await resp.json();
@@ -807,7 +825,7 @@ async function deleteFile(key) {
   try {
     const resp = await fetch(fileApi('/api/files/' + encodeURIComponent(key)), {
       method: 'DELETE',
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (!resp.ok) throw new Error('删除失败: ' + resp.status);
     console.log('[my-pan] 已删除:', key);
@@ -825,7 +843,7 @@ async function deleteFile(key) {
 async function uploadZeroByte(key) {
   const resp = await fetch(fileApi('/api/upload-url'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+    headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
     body: JSON.stringify({ key, contentType: 'application/octet-stream' }),
   });
   if (!resp.ok) throw new Error('获取上传链接失败');
@@ -996,7 +1014,7 @@ async function uploadItems(items) {
       for (let attempt = 0; attempt < 2; attempt++) {
         const presignResp = await fetch(fileApi('/api/upload-url'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+          headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
           body: JSON.stringify({ key, contentType: file.type || 'application/octet-stream' }),
         });
         if (!presignResp.ok) {
@@ -1219,9 +1237,17 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
 });
 
 // ===== Logout =====
-document.getElementById('logout-btn').addEventListener('click', () => {
-  setCookie('my-pan_pw', '', -1);
-  password = '';
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  if (token) {
+    try {
+      await fetch(apiBase + '/api/logout', {
+        method: 'POST',
+        headers: { 'X-Auth-Token': token },
+      });
+    } catch { /* ignore */ }
+  }
+  setCookie('my-pan_token', '', -1);
+  token = '';
   files = [];
   currentPrefix = '';
   selectedKeys.clear(); selectedFolders.clear();
@@ -1263,7 +1289,7 @@ document.getElementById('batch-delete-btn').addEventListener('click', () => {
     try {
       const resp = await fetch(fileApi('/api/batch-delete'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
         body: JSON.stringify({ keys: [...allKeys] }),
       });
       if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
@@ -1302,7 +1328,7 @@ document.getElementById('batch-download-btn').addEventListener('click', async ()
   for (const key of fileKeys) {
     try {
       const resp = await fetch(fileApi('/api/files/' + encodeURIComponent(key)), {
-        headers: { 'X-Auth-Password': password },
+        headers: { 'X-Auth-Token': token },
       });
       if (resp.ok) {
         const { url } = await resp.json();
@@ -1334,7 +1360,7 @@ async function deleteFileSilent(key) {
   try {
     const resp = await fetch(fileApi('/api/files/' + encodeURIComponent(key)), {
       method: 'DELETE',
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (!resp.ok) throw new Error('删除失败: ' + resp.status);
   } catch (err) {
@@ -1427,7 +1453,7 @@ function confirmDeleteFolder(prefix) {
     try {
       const resp = await fetch(fileApi('/api/batch-delete'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
         body: JSON.stringify({ keys: allItems.map(f => f.key) }),
       });
       if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
@@ -1458,7 +1484,7 @@ async function renameFile(key) {
   try {
     const resp = await fetch(fileApi('/api/rename'), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+      headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
       body: JSON.stringify({ sourceKey: key, destinationKey: newKey }),
     });
     if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
@@ -1488,7 +1514,7 @@ async function renameFolder(prefix) {
     try {
       const resp = await fetch(fileApi('/api/rename'), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
         body: JSON.stringify({ sourceKey: f.key, destinationKey: newKey }),
       });
       if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
@@ -1525,7 +1551,7 @@ async function downloadFolder(prefix) {
   for (const f of items) {
     try {
       const resp = await fetch(fileApi('/api/files/' + encodeURIComponent(f.key)), {
-        headers: { 'X-Auth-Password': password },
+        headers: { 'X-Auth-Token': token },
       });
       if (resp.ok) {
         const { url } = await resp.json();
@@ -1858,7 +1884,7 @@ async function createShare(key) {
     try {
       const resp = await fetch(fileApi('/api/shares'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
         body: JSON.stringify({ fileKey: key, fileName, password: sharePw || undefined, expiresInHours }),
       });
       if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
@@ -1993,7 +2019,7 @@ async function loadShareList(container, toolbar, page) {
   const pageSize = 10;
   try {
     const resp = await fetch(apiBase + '/api/shares?page=' + page + '&pageSize=' + pageSize, {
-      headers: { 'X-Auth-Password': password },
+      headers: { 'X-Auth-Token': token },
     });
     if (!resp.ok) throw new Error('获取分享列表失败: ' + resp.status);
     const data = await resp.json();
@@ -2178,7 +2204,7 @@ async function loadShareList(container, toolbar, page) {
             const body = selectAll ? { delete_all: true } : { ids };
             const resp = await fetch(apiBase + '/api/shares/batch-delete', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Auth-Password': password },
+              headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
               body: JSON.stringify(body),
             });
             if (!resp.ok) throw new Error('批量删除失败');
@@ -2205,7 +2231,7 @@ async function loadShareList(container, toolbar, page) {
           try {
             const resp = await fetch(apiBase + '/api/shares/' + id, {
               method: 'DELETE',
-              headers: { 'X-Auth-Password': password },
+              headers: { 'X-Auth-Token': token },
             });
             if (!resp.ok) throw new Error('删除失败');
             toast('分享已删除', 'success');

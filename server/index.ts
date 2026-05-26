@@ -90,6 +90,47 @@ app.use(express.json());
 
 // ---- Public routes (before auth) ----
 
+// POST /api/login — token-based auth (public, rate-limited)
+app.post('/api/login', async (req, res) => {
+  const pw = env.AUTH_PASSWORD;
+  if (!pw) {
+    if (env.KV_BINDING) {
+      const token = await createSessionToken(env.KV_BINDING as unknown as KVNamespace);
+      return res.json({ token });
+    }
+    return res.json({ token: '' });
+  }
+  const providedPw = (req.body?.password as string) || '';
+  if (env.KV_BINDING) {
+    const r = adaptRequest(req);
+    const kv = env.KV_BINDING as unknown as KVNamespace;
+    const rate = await checkRateLimit(kv, r as unknown as Request);
+    if (!rate.allowed) {
+      return res.status(429)
+        .set(rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {})
+        .json({ error: rate.error });
+    }
+    if (rate.delayMs > 0) {
+      await new Promise(rs => setTimeout(rs, rate.delayMs));
+    }
+  }
+  if (providedPw === pw) {
+    if (env.KV_BINDING) {
+      const kv = env.KV_BINDING as unknown as KVNamespace;
+      const r = adaptRequest(req);
+      await recordAuthSuccess(kv, r as unknown as Request);
+      const token = await createSessionToken(kv);
+      return res.json({ token });
+    }
+    return res.json({ token: '' });
+  }
+  if (env.KV_BINDING) {
+    const r = adaptRequest(req);
+    await recordAuthFailure(env.KV_BINDING as unknown as KVNamespace, r as unknown as Request);
+  }
+  return res.status(401).json({ error: 'Unauthorized' });
+});
+
 // GET|POST /s/:id — share access page
 app.all('/s/:id', async (req, res, next) => {
   if (!env.DB) return next();
@@ -138,31 +179,38 @@ app.get('/api/preview/:key(*)', async (req, res, next) => {
 // ---- Static files (before auth) ----
 app.use(express.static('../pages/public'));
 
+const TOKEN_PREFIX = 'token:';
+const TOKEN_TTL = 7 * 24 * 3600; // 7 days
+
+async function createSessionToken(kv: KVNamespace): Promise<string> {
+  const token = crypto.randomUUID();
+  await kv.put(TOKEN_PREFIX + token, '1', { expirationTtl: TOKEN_TTL });
+  return token;
+}
+
+async function validateToken(kv: KVNamespace, token: string): Promise<boolean> {
+  const val = await kv.get(TOKEN_PREFIX + token);
+  if (!val) return false;
+  await kv.put(TOKEN_PREFIX + token, '1', { expirationTtl: TOKEN_TTL });
+  return true;
+}
+
+async function revokeToken(kv: KVNamespace, token: string): Promise<void> {
+  await kv.delete(TOKEN_PREFIX + token);
+}
+
 // ---- Auth middleware ----
 
 async function authMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
   const password = env.AUTH_PASSWORD;
   if (!password) return next();
 
-  const r = adaptRequest(req);
-  if (env.KV_BINDING) {
-    const rate = await checkRateLimit(env.KV_BINDING, r as unknown as Request);
-    if (!rate.allowed) {
-      return res.status(429)
-        .set(rate.retryAfter ? { 'Retry-After': String(rate.retryAfter) } : {})
-        .json({ error: rate.error });
-    }
-    if (rate.delayMs > 0) {
-      await new Promise(rs => setTimeout(rs, rate.delayMs));
-    }
+  const token = req.headers['x-auth-token'] as string | undefined;
+  if (token && env.KV_BINDING) {
+    const valid = await validateToken(env.KV_BINDING as unknown as KVNamespace, token);
+    return valid ? next() : res.status(401).json({ error: 'Unauthorized' });
   }
 
-  if (req.headers['x-auth-password'] === password) {
-    if (env.KV_BINDING) await recordAuthSuccess(env.KV_BINDING, r as unknown as Request);
-    return next();
-  }
-
-  if (env.KV_BINDING) await recordAuthFailure(env.KV_BINDING, r as unknown as Request);
   return res.status(401).json({ error: 'Unauthorized' });
 }
 
@@ -327,6 +375,15 @@ app.post('/api/shares/batch-delete', async (req, res) => {
     console.error('[my-pan] batch-delete-shares error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
+});
+
+// POST /api/logout — revoke token
+app.post('/api/logout', async (req, res) => {
+  const token = req.headers['x-auth-token'] as string | undefined;
+  if (token && env.KV_BINDING) {
+    await revokeToken(env.KV_BINDING as unknown as KVNamespace, token);
+  }
+  res.json({ ok: true });
 });
 
 // ---- 404 ----
