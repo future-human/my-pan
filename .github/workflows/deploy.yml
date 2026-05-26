@@ -8,9 +8,9 @@ on:
   push:
     branches: [master]
     paths:
-      - 'worker/**'                          # Worker 源码或 wrangler.toml
-      - 'pages/public/**'                    # 静态前端
-      - '.github/workflows/deploy-worker.yml' # 工作流自身
+      - 'worker/**'                 # Worker 源码或 wrangler.toml
+      - 'pages/public/**'           # 静态前端
+      - '.github/workflows/*.yml'   # 工作流自身
   # 允许在 Actions 页面手动触发（Run workflow 按钮）
   workflow_dispatch:
 
