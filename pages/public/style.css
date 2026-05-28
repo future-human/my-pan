@@ -288,6 +288,40 @@
       background: #ea4335;
     }
 
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn-lang {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      transition: color .15s, background .15s;
+      flex-shrink: 0;
+    }
+
+    .btn-lang:hover {
+      color: #0066ff;
+      background: rgba(0, 102, 255, .06);
+    }
+
+    .lang-icon {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+
     .btn-logout {
       padding: 4px 12px;
       background: linear-gradient(135deg, #8e99ab, #6b7890);

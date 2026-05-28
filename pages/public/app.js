@@ -48,7 +48,7 @@ async function init() {
     await loadStorages();
     checkSharing();
     loadFiles();
-    toast('当前未设置访问密码，建议配置 AUTH_PASSWORD 以保护数据安全', 'warning', 5000);
+    toast(t('当前未设置访问密码，建议配置 AUTH_PASSWORD 以保护数据安全'), 'warning', 5000);
     return;
   }
 
@@ -103,7 +103,7 @@ async function loadStorages() {
     document.getElementById('search-input').value = '';
     files = [];
     renderFiles();
-    document.getElementById('usage-text').textContent = '加载中...';
+    document.getElementById('usage-text').textContent = t('加载中...');
     document.getElementById('usage-bar-fill').style.width = '0%';
     renderSelect();
     container.classList.remove('open');
@@ -191,7 +191,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
 
   // 进入加载状态
   btn.disabled = true;
-  btn.textContent = '验证中...';
+  btn.textContent = t('验证中...');
   errEl.style.display = 'none';
   input.classList.remove('shake');
 
@@ -200,10 +200,10 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     newToken = await doLogin(pw);
   } catch (err) {
     console.error('[my-pan] 登录: 网络错误', err);
-    errEl.textContent = '网络错误，请检查连接';
+    errEl.textContent = t('网络错误，请检查连接');
     errEl.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = '进入';
+    btn.textContent = t('进入');
     return;
   }
   if (newToken !== null) {
@@ -215,12 +215,12 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     checkSharing();
     loadFiles();
   } else {
-    errEl.textContent = '密码错误，请重试';
+    errEl.textContent = t('密码错误，请重试');
     errEl.style.display = 'block';
     input.classList.add('shake');
     input.focus();
     btn.disabled = false;
-    btn.textContent = '进入';
+    btn.textContent = t('进入');
   }
 });
 
@@ -243,7 +243,7 @@ async function loadFiles() {
   const cur = storages.find(s => s.id === currentStorage);
   if (cur?.capacity) {
     document.getElementById('usage').style.display = '';
-    document.getElementById('usage-text').textContent = '加载中...';
+    document.getElementById('usage-text').textContent = t('加载中...');
     document.getElementById('usage-bar-fill').style.width = '0%';
   }
   try {
@@ -262,11 +262,11 @@ async function loadFiles() {
   } catch (err) {
     console.error('[my-pan] loadFiles: 加载失败', err);
     const ut = document.getElementById('usage-text');
-    ut.textContent = '加载失败';
+    ut.textContent = t('加载失败');
     ut.classList.add('error');
     document.getElementById('usage').style.display = '';
     document.getElementById('usage-bar-fill').style.width = '0%';
-    toast('加载文件列表失败: ' + err.message, 'error');
+    toast(t('加载文件列表失败') + ': ' + err.message, 'error');
     return false;
   }
 }
@@ -290,8 +290,8 @@ function renderFiles() {
     const pct = totalSize / capacity * 100;
     const unit = curStorage?.capacityUnit;
     document.getElementById('usage-text').textContent = unit
-      ? `${formatSizeFixed(freeSize, unit)} 可用，共 ${formatSizeFixed(capacity, unit)}`
-      : `${formatSize(freeSize)} 可用，共 ${formatSize(capacity)}`;
+      ? `${formatSizeFixed(freeSize, unit)} ${t('可用')}，${t('共')} ${formatSizeFixed(capacity, unit)}`
+      : `${formatSize(freeSize)} ${t('可用')}，${t('共')} ${formatSize(capacity)}`;
     document.getElementById('usage-text').classList.remove('error');
     barFill.style.width = pct.toFixed(1) + '%';
     barFill.className = 'usage-bar-fill' + (pct > 90 ? ' danger' : pct > 80 ? ' warn' : '');
@@ -302,11 +302,11 @@ function renderFiles() {
   // Search mode: flat list of matching files
   if (searchQuery) {
     const matched = files.filter(f => !f.key.endsWith('/') && f.key.startsWith(currentPrefix) && f.key.toLowerCase().includes(searchQuery));
-    countEl.textContent = `搜索 "${searchQuery}" — ${matched.length} 个文件`;
+    countEl.textContent = t('搜索 "{0}" — {1} 个文件', searchQuery, matched.length);
     if (matched.length === 0) {
       tbody.innerHTML = '';
       empty.style.display = 'block';
-      document.getElementById('empty-text').textContent = '没有匹配的文件';
+      document.getElementById('empty-text').textContent = t('没有匹配的文件');
       clearSelection();
       setupDragAndDrop();
       return;
@@ -321,11 +321,11 @@ function renderFiles() {
       <td class="file-size">${formatSize(f.size)}</td>
       <td class="file-date">${formatDate(f.lastModified)}</td>
       <td class="actions">
-        <button class="download" data-key="${escAttr(f.key)}">下载</button>
-        <button class="rename" data-key="${escAttr(f.key)}">重命名</button>
-        <button class="delete" data-key="${escAttr(f.key)}">删除</button>
-        ${sharingEnabled ? `<button class="share" data-key="${escAttr(f.key)}">分享</button>` : ''}
-        <button class="preview${isPreviewable(f.key) ? '' : ' btn-hidden'}" data-key="${escAttr(f.key)}">预览</button>
+        <button class="download" data-key="${escAttr(f.key)}">${t('下载')}</button>
+        <button class="rename" data-key="${escAttr(f.key)}">${t('重命名')}</button>
+        <button class="delete" data-key="${escAttr(f.key)}">${t('删除')}</button>
+        ${sharingEnabled ? `<button class="share" data-key="${escAttr(f.key)}">${t('分享')}</button>` : ''}
+        <button class="preview${isPreviewable(f.key) ? '' : ' btn-hidden'}" data-key="${escAttr(f.key)}">${t('预览')}</button>
       </td>
     </tr>`;
     }
@@ -361,7 +361,7 @@ function renderFiles() {
   });
 
   const totalEntries = folderData.length + directFiles.length;
-  countEl.textContent = `共 ${totalEntries} 项`;
+  countEl.textContent = t('共 {0} 项', totalEntries);
 
   empty.style.display = 'none';
 
@@ -371,7 +371,7 @@ function renderFiles() {
   if (totalEntries === 0 && !currentPrefix) {
     tbody.innerHTML = '';
     empty.style.display = 'block';
-    document.getElementById('empty-text').textContent = '存储桶中没有文件';
+    document.getElementById('empty-text').textContent = t('存储桶中没有文件');
     clearSelection();
     setupColumnResize();
     setupDragAndDrop();
@@ -388,11 +388,11 @@ function renderFiles() {
       <td class="file-size"></td>
       <td class="file-date"></td>
       <td class="actions">
-        <button class="download btn-hidden" tabindex="-1">下载</button>
-        <button class="rename btn-hidden" tabindex="-1">重命名</button>
-        <button class="delete btn-hidden" tabindex="-1">删除</button>
-        ${sharingEnabled ? '<button class="share btn-hidden" tabindex="-1">分享</button>' : ''}
-        <button class="preview btn-hidden" tabindex="-1">预览</button>
+        <button class="download btn-hidden" tabindex="-1">${t('下载')}</button>
+        <button class="rename btn-hidden" tabindex="-1">${t('重命名')}</button>
+        <button class="delete btn-hidden" tabindex="-1">${t('删除')}</button>
+        ${sharingEnabled ? '<button class="share btn-hidden" tabindex="-1">' + t('分享') + '</button>' : ''}
+        <button class="preview btn-hidden" tabindex="-1">${t('预览')}</button>
       </td>
     </tr>`;
   }
@@ -406,11 +406,11 @@ function renderFiles() {
       <td class="file-size">${formatSize(fd.totalSize)}</td>
       <td class="file-date">${fd.latestDate ? formatDate(fd.latestDate) : '—'}</td>
       <td class="actions">
-        <button class="download" data-prefix="${escAttr(fd.prefix)}">下载</button>
-        <button class="rename" data-prefix="${escAttr(fd.prefix)}">重命名</button>
-        <button class="delete" data-prefix="${escAttr(fd.prefix)}">删除</button>
-        ${sharingEnabled ? `<button class="share" data-prefix="${escAttr(fd.prefix)}">分享</button>` : ''}
-        <button class="preview btn-hidden" tabindex="-1">预览</button>
+        <button class="download" data-prefix="${escAttr(fd.prefix)}">${t('下载')}</button>
+        <button class="rename" data-prefix="${escAttr(fd.prefix)}">${t('重命名')}</button>
+        <button class="delete" data-prefix="${escAttr(fd.prefix)}">${t('删除')}</button>
+        ${sharingEnabled ? `<button class="share" data-prefix="${escAttr(fd.prefix)}">${t('分享')}</button>` : ''}
+        <button class="preview btn-hidden" tabindex="-1">${t('预览')}</button>
       </td>
     </tr>`;
   }
@@ -683,8 +683,8 @@ function updateBatchToolbar() {
   document.getElementById('file-count').style.display = itemCount > 0 ? 'none' : '';
   document.getElementById('batch-info').style.display = itemCount > 0 ? 'flex' : 'none';
   const text = selectedFolders.size > 0
-      ? `已选 <span id="selected-count">${itemCount}</span> 项（共 ${fileCount} 个文件）`
-      : `已选 <span id="selected-count">${fileCount}</span> 个文件`;
+      ? t('已选 {0} 项（共 {1} 个文件）', `<span id="selected-count">${itemCount}</span>`, fileCount)
+      : t('已选 {0} 个', `<span id="selected-count">${fileCount}</span>`);
   document.getElementById('selected-text').innerHTML = text;
   const allChecked = itemCount > 0 && [...allFiles].every(cb => cb.checked) && [...allFolders].every(cb => cb.checked);
   document.getElementById('select-all').checked = allChecked;
@@ -724,7 +724,7 @@ async function downloadFile(key) {
     triggerDownload(url);
   } catch (err) {
     console.error('[my-pan] downloadFile: 失败', err);
-    toast('下载失败: ' + err.message, 'error');
+    toast(t('下载失败') + ': ' + err.message, 'error');
   }
 }
 
@@ -741,7 +741,7 @@ async function previewFile(key) {
     showPreview(key, url, text);
   } catch (err) {
     console.error('[my-pan] previewFile: 失败', err);
-    toast('预览失败: ' + err.message, 'error');
+    toast(t('预览失败') + ': ' + err.message, 'error');
   }
 }
 
@@ -886,8 +886,8 @@ function promptDialog(title, defaultValue = '') {
       <h3>${esc(title)}</h3>
       <input type="text" class="prompt-input" value="${esc(defaultValue)}" autofocus>
       <div class="prompt-buttons">
-        <button class="btn-cancel">取消</button>
-        <button class="btn-confirm">确定</button>
+        <button class="btn-cancel">${t('取消')}</button>
+        <button class="btn-confirm">${t('确定')}</button>
       </div>
     </div>
   `;
@@ -912,7 +912,7 @@ function showConfirmDialog(title, messageHtml, confirmLabel, onConfirm) {
       <h3>${title}</h3>
       <p>${messageHtml}</p>
       <div class="dialog-buttons">
-        <button class="btn-cancel">取消</button>
+        <button class="btn-cancel">${t('取消')}</button>
         <button class="btn-confirm">${confirmLabel}</button>
       </div>
     </div>
@@ -928,7 +928,7 @@ function showConfirmDialog(title, messageHtml, confirmLabel, onConfirm) {
 }
 
 function confirmDelete(key) {
-  showConfirmDialog('确认删除', `确定要删除 <strong>${esc(key)}</strong> 吗？此操作不可撤销。`, '删除', () => deleteFile(key));
+  showConfirmDialog(t('确认删除'), t('确定要删除 <strong>{0}</strong> 吗？此操作不可撤销。', esc(key)), t('删除'), () => deleteFile(key));
 }
 
 function showConflictDialog(filename) {
@@ -937,12 +937,12 @@ function showConflictDialog(filename) {
     overlay.className = 'dialog-overlay';
     overlay.innerHTML = `
       <div class="dialog-box">
-        <h3>文件已存在</h3>
-        <p><strong>${esc(filename)}</strong> 已存在，请选择操作：</p>
+        <h3>${t('文件已存在')}</h3>
+        <p><strong>${esc(filename)}</strong> ${t('已存在，请选择操作：')}</p>
         <div class="dialog-buttons">
-          <button class="btn-rename">自动编号上传</button>
-          <button class="btn-overwrite">覆盖</button>
-          <button class="btn-cancel">取消</button>
+          <button class="btn-rename">${t('自动编号上传')}</button>
+          <button class="btn-overwrite">${t('覆盖')}</button>
+          <button class="btn-cancel">${t('取消')}</button>
         </div>
       </div>
     `;
@@ -955,21 +955,21 @@ function showConflictDialog(filename) {
 }
 
 async function deleteFile(key) {
-  toast(`删除中...`, 'warning', 0);
+  toast(t('删除中...'), 'warning', 0);
   try {
     const resp = await fetch(fileApi('/api/files/' + encodeURIComponent(key)), {
       method: 'DELETE',
       headers: { 'X-Auth-Token': token },
     });
-    if (!resp.ok) throw new Error('删除失败: ' + resp.status);
+    if (!resp.ok) throw new Error(t('删除失败') + ': ' + resp.status);
     console.log('[my-pan] 已删除:', key);
     await preserveAncestorDirs(key);
-    toast('刷新中...', 'info', 0);
+    toast(t('刷新中...'), 'info', 0);
     await loadFiles();
-    toast('删除成功', 'success');
+    toast(t('删除成功'), 'success');
   } catch (err) {
     console.error('[my-pan] deleteFile: 失败', err);
-    toast('删除失败: ' + err.message, 'error');
+    toast(t('删除失败') + ': ' + err.message, 'error');
   }
 }
 
@@ -1093,14 +1093,14 @@ async function uploadItems(items) {
         overlay.className = 'dialog-overlay';
         overlay.innerHTML = `
           <div class="dialog-box">
-            <h3>剩余容量不足</h3>
+            <h3>${t('剩余容量不足')}</h3>
             <div class="capacity-exceed-info">
-              <div class="capacity-row"><span class="capacity-label">需要容量</span><span class="capacity-value">${formatSize(uploadSize)}</span></div>
-              <div class="capacity-row"><span class="capacity-label">剩余容量</span><span class="capacity-value">${formatSize(remain)}</span></div>
-              <div class="capacity-row exceed"><span class="capacity-label">超出</span><span class="capacity-value">${formatSize(uploadSize - remain)}</span></div>
+              <div class="capacity-row"><span class="capacity-label">${t('需要容量')}</span><span class="capacity-value">${formatSize(uploadSize)}</span></div>
+              <div class="capacity-row"><span class="capacity-label">${t('剩余容量')}</span><span class="capacity-value">${formatSize(remain)}</span></div>
+              <div class="capacity-row exceed"><span class="capacity-label">${t('超出')}</span><span class="capacity-value">${formatSize(uploadSize - remain)}</span></div>
             </div>
             <div class="dialog-buttons">
-              <button class="btn-cancel">关闭</button>
+              <button class="btn-cancel">${t('关闭')}</button>
             </div>
           </div>
         `;
@@ -1135,7 +1135,7 @@ async function uploadItems(items) {
   function updateProgress() {
     const sum = partialProgress.reduce((a, b) => a + b, 0);
     progressBar.style.width = pendingTotal > 0 ? (sum / pendingTotal * 100) + '%' : '100%';
-    if (statusToast) statusToast.textContent = `上传中 ${completed}/${pendingTotal}`;
+    if (statusToast) statusToast.textContent = t('上传中 {0}/{1}', completed, pendingTotal);
   }
 
   await runPool(pendingItems.map((item, i) => async () => {
@@ -1150,12 +1150,12 @@ async function uploadItems(items) {
         });
         if (!presignResp.ok) {
           const err = await presignResp.json().catch(() => ({}));
-          throw new Error(`获取上传链接失败: ${err.error || presignResp.status}`);
+          throw new Error(t('获取上传链接失败') + `: ${err.error || presignResp.status}`);
         }
         const { url } = await presignResp.json();
 
         if (!statusToast) {
-          statusToast = toast(`上传中 ${completed}/${pendingTotal}`, 'info', 0);
+          statusToast = toast(t('上传中 {0}/{1}', completed, pendingTotal), 'info', 0);
         }
 
         try {
@@ -1213,13 +1213,13 @@ async function uploadItems(items) {
   for (const dir of dirs) {
     if (!files.some(f => f.key === dir)) await ensureDirMarker(dir);
   }
-  toast('刷新中...', 'info', 0);
+  toast(t('刷新中...'), 'info', 0);
   await loadFiles();
   if (handled > 0) {
     if (failed.length > 0) {
-      toast(`上传失败，成功 ${handled - failed.length} 个，失败 ${failed.length} 个`, 'error');
+      toast(t('上传失败，成功 {0} 个，失败 {1} 个', handled - failed.length, failed.length), 'error');
     } else {
-      toast(`上传成功，成功 ${handled} 个`, 'success');
+      toast(t('上传成功，成功 {0} 个', handled), 'success');
     }
   }
 }
@@ -1330,23 +1330,23 @@ document.getElementById('select-all').addEventListener('click', () => {
 
 // ===== Refresh =====
 document.getElementById('new-folder-btn').addEventListener('click', async () => {
-  const name = await promptDialog('请输入文件夹名称：');
+  const name = await promptDialog(t('请输入文件夹名称：'));
   if (!name || !name.trim()) return;
   const key = currentPrefix + name.trim() + '/';
   const progressBar = document.getElementById('progress-bar');
   progressBar.style.display = 'block';
   progressBar.style.width = '0%';
-  toast('创建中...', 'info', 0);
+  toast(t('创建中...'), 'info', 0);
   try {
     await uploadZeroByte(key);
     progressBar.style.width = '100%';
     setTimeout(() => { progressBar.style.display = 'none'; }, 300);
-    toast('刷新中...', 'info', 0);
+    toast(t('刷新中...'), 'info', 0);
     await loadFiles();
-    toast('文件夹已创建', 'success');
+    toast(t('文件夹已创建'), 'success');
   } catch (err) {
     progressBar.style.display = 'none';
-    toast('创建文件夹失败: ' + err.message, 'error');
+    toast(t('创建文件夹失败') + ': ' + err.message, 'error');
   }
 });
 
@@ -1361,11 +1361,19 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
   document.getElementById('search-input').value = '';
   const btn = document.getElementById('refresh-btn');
   btn.disabled = true;
-  toast('刷新中...', 'info', 0);
+  toast(t('刷新中...'), 'info', 0);
   const ok = await loadFiles();
-  if (ok) toast(`刷新完成，共 ${countFiles(files)} 个文件`, 'success');
+  if (ok) toast(t('刷新完成，共 {0} 个文件', countFiles(files)), 'success');
   btn.disabled = false;
 });
+
+// ===== Lang toggle =====
+document.getElementById('lang-btn').addEventListener('click', () => toggleLang());
+// Update lang button title based on current language
+(function () {
+  const langBtn = document.getElementById('lang-btn');
+  langBtn.title = getLang() === 'zh' ? 'Switch to English' : '切换为中文';
+})();
 
 // ===== Logout =====
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -1410,10 +1418,10 @@ document.getElementById('batch-delete-btn').addEventListener('click', () => {
     allKeys.add(prefix);
   }
   const desc = selectedFolders.size > 0
-      ? `<strong>${itemCount}</strong> 个项目（共 <strong>${fileCount}</strong> 个文件）`
-      : `<strong>${fileCount}</strong> 个文件`;
-  showConfirmDialog('确认批量删除', `确定要删除选中的 ${desc} 吗？此操作不可撤销。`, '删除', async () => {
-    toast('删除中...', 'warning', 0);
+      ? t('已选 {0} 项（共 {1} 个文件）', `<strong>${itemCount}</strong>`, fileCount)
+      : t('已选 {0} 个', `<strong>${fileCount}</strong>`);
+  showConfirmDialog(t('确认批量删除'), t('确定要删除选中的') + ' ' + desc + ' ' + t('？此操作不可撤销。'), t('删除'), async () => {
+    toast(t('删除中...'), 'warning', 0);
     try {
       const resp = await fetch(fileApi('/api/batch-delete'), {
         method: 'POST',
@@ -1422,7 +1430,7 @@ document.getElementById('batch-delete-btn').addEventListener('click', () => {
       });
       if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
     } catch (err) {
-      toast('批量删除失败: ' + err.message, 'error');
+      toast(t('批量删除失败') + ': ' + err.message, 'error');
       return;
     }
     for (const key of allKeys) {
@@ -1431,9 +1439,9 @@ document.getElementById('batch-delete-btn').addEventListener('click', () => {
       await preserveAncestorDirs(key, allKeys);
     }
     clearSelection();
-    toast('刷新中...', 'info', 0);
+    toast(t('刷新中...'), 'info', 0);
     await loadFiles();
-    toast(`删除成功，已删除 ${fileCount} 个文件`, 'success');
+    toast(t('删除成功，已删除 {0} 个文件', fileCount), 'success');
   });
 });
 
@@ -1446,12 +1454,12 @@ document.getElementById('batch-download-btn').addEventListener('click', async ()
     }
   }
   if (fileKeys.size === 0) {
-    toast('选中的文件夹中没有可下载的文件', 'warning');
+    toast(t('选中的文件夹中没有可下载的文件'), 'warning');
     return;
   }
 
   // 阶段一：从 Worker 获取所有预签名下载链接
-  const statusToast = toast('获取下载链接...', 'info', 0);
+  const statusToast = toast(t('获取下载链接') + '...', 'info', 0);
   const tasks = [];
   for (const key of fileKeys) {
     try {
@@ -1470,19 +1478,19 @@ document.getElementById('batch-download-btn').addEventListener('click', async ()
   }
 
   if (tasks.length === 0) {
-    toast('获取下载链接失败', 'error');
+    toast(t('获取下载链接失败'), 'error');
     return;
   }
 
   // 阶段二：逐个触发浏览器下载（iframe 方式，不受用户手势限制）
   let done = 0;
-  statusToast.textContent = `下载中 0/${tasks.length}`;
+  statusToast.textContent = t('下载中 {0}/{1}', 0, tasks.length);
   for (const { url } of tasks) {
     await downloadViaIframe(url);
     done++;
-    statusToast.textContent = `下载中 ${done}/${tasks.length}`;
+    statusToast.textContent = t('下载中 {0}/{1}', done, tasks.length);
   }
-  toast(`下载完成，已下载 ${tasks.length} 个文件`, 'success');
+  toast(t('下载完成，已下载 {0} 个文件', tasks.length), 'success');
 });
 
 async function deleteFileSilent(key) {
@@ -1773,13 +1781,13 @@ async function moveItems(sourceFiles, sourceFolders, targetPrefix) {
   }
 
   if (toMove.length === 0) {
-    toast('没有可移动的文件（目标位置已存在同名文件）', 'warning');
+    toast(t('没有可移动的文件（目标位置已存在同名文件）'), 'warning');
     return;
   }
 
   let done = 0;
   const total = toMove.length;
-  const statusToast = toast(`移动中 0/${total}`, 'info', 0);
+  const statusToast = toast(t('移动中 {0}/{1}', 0, total), 'info', 0);
 
   await runPool(toMove.map(m => async () => {
     try {
@@ -1793,7 +1801,7 @@ async function moveItems(sourceFiles, sourceFolders, targetPrefix) {
       console.error('[my-pan] 移动失败', m.sourceKey, err);
     }
     done++;
-    statusToast.textContent = `移动中 ${done}/${total}`;
+    statusToast.textContent = t('移动中 {0}/{1}', done, total);
   }), 5);
 
   // Clean up empty ancestor dirs
@@ -1812,9 +1820,9 @@ async function moveItems(sourceFiles, sourceFolders, targetPrefix) {
   }
 
   clearSelection();
-  toast('刷新中...', 'info', 0);
+  toast(t('刷新中...'), 'info', 0);
   await loadFiles();
-  toast(`移动完成，共 ${total} 个文件`, 'success');
+    toast(t('移动完成，共 {0} 个文件', total), 'success');
 }
 
 function confirmDeleteFolder(prefix) {
@@ -1822,9 +1830,9 @@ function confirmDeleteFolder(prefix) {
   const subFiles = allItems.filter(f => !f.key.endsWith('/'));
   if (allItems.length === 0) return;
 
-  const info = subFiles.length > 0 ? `文件夹中的 <strong>${subFiles.length}</strong> 个文件` : '空文件夹';
-  showConfirmDialog('确认删除文件夹', `将删除${info}，此操作不可撤销。`, '删除', async () => {
-    toast('删除中...', 'warning', 0);
+  const info = subFiles.length > 0 ? t('文件夹中的') + ` <strong>${subFiles.length}</strong> ` + t('个文件') : t('空文件夹');
+  showConfirmDialog(t('确认删除文件夹'), t('将删除') + info + t('，此操作不可撤销。'), t('删除'), async () => {
+    toast(t('删除中...'), 'warning', 0);
     try {
       const resp = await fetch(fileApi('/api/batch-delete'), {
         method: 'POST',
@@ -1833,7 +1841,7 @@ function confirmDeleteFolder(prefix) {
       });
       if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
     } catch (err) {
-      toast('删除文件夹失败: ' + err.message, 'error');
+      toast(t('删除文件夹失败') + ': ' + err.message, 'error');
       return;
     }
     const deletedKeys = new Set(allItems.map(f => f.key));
@@ -1842,20 +1850,20 @@ function confirmDeleteFolder(prefix) {
       if (key.endsWith('/') && deletedKeys.has(key)) continue;
       await preserveAncestorDirs(key, deletedKeys);
     }
-    toast('刷新中...', 'info', 0);
+    toast(t('刷新中...'), 'info', 0);
     await loadFiles();
-    toast(`已删除文件夹，共 ${subFiles.length} 个文件`, 'success');
+    toast(t('已删除文件夹，共 {0} 个文件', subFiles.length), 'success');
   });
 }
 
 async function renameFile(key) {
   const dir = key.substring(0, key.lastIndexOf('/') + 1);
   const oldName = key.substring(dir.length);
-  const newName = await promptDialog('重命名文件：', oldName);
+  const newName = await promptDialog(t('重命名文件：'), oldName);
   if (!newName || !newName.trim() || newName === oldName) return;
   const newKey = dir + newName.trim();
-  if (files.some(f => f.key === newKey)) { toast('同名文件已存在', 'error'); return; }
-  toast('重命名中...', 'info', 0);
+  if (files.some(f => f.key === newKey)) { toast(t('同名文件已存在'), 'error'); return; }
+  toast(t('重命名中...'), 'info', 0);
   try {
     const resp = await fetch(fileApi('/api/rename'), {
       method: 'PUT',
@@ -1863,26 +1871,26 @@ async function renameFile(key) {
       body: JSON.stringify({ sourceKey: key, destinationKey: newKey }),
     });
     if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
-    toast('刷新中...', 'info', 0);
+    toast(t('刷新中...'), 'info', 0);
     await loadFiles();
-    toast('重命名成功', 'success');
+    toast(t('重命名成功'), 'success');
   } catch (err) {
-    toast('重命名失败: ' + err.message, 'error');
+    toast(t('重命名失败') + ': ' + err.message, 'error');
   }
 }
 
 async function renameFolder(prefix) {
   const parent = prefix.substring(0, prefix.lastIndexOf('/', prefix.length - 2) + 1);
   const oldName = prefix.substring(parent.length, prefix.length - 1);
-  const newName = await promptDialog('重命名文件夹：', oldName);
+  const newName = await promptDialog(t('重命名文件夹：'), oldName);
   if (!newName || !newName.trim() || newName === oldName) return;
   const newPrefix = parent + newName.trim() + '/';
-  if (files.some(f => f.key === newPrefix)) { toast('同名文件夹已存在', 'error'); return; }
+  if (files.some(f => f.key === newPrefix)) { toast(t('同名文件夹已存在'), 'error'); return; }
 
   const allItems = files.filter(f => f.key.startsWith(prefix));
   const fileItems = allItems.filter(f => !f.key.endsWith('/'));
   const total = fileItems.length;
-  const statusToast = toast(`重命名中 0/${total || 1}`, 'info', 0);
+  const statusToast = toast(t('重命名中 {0}/{1}', 0, total || 1), 'info', 0);
   let fileDone = 0;
   await runPool(allItems.map(f => async () => {
     const newKey = newPrefix + f.key.slice(prefix.length);
@@ -1898,7 +1906,7 @@ async function renameFolder(prefix) {
     }
     if (!f.key.endsWith('/')) {
       fileDone++;
-      statusToast.textContent = `重命名中 ${fileDone}/${total}`;
+      statusToast.textContent = t('重命名中 {0}/{1}', fileDone, total);
     }
   }), 5);
   // 清理因重命名产生的空祖先目录标记（a/b/ → c/d/ 后 a/ 可能变空）
@@ -1913,15 +1921,15 @@ async function renameFolder(prefix) {
     }
     p = p.substring(0, p.lastIndexOf('/', p.length - 2) + 1);
   }
-  toast('刷新中...', 'info', 0);
+  toast(t('刷新中...'), 'info', 0);
   await loadFiles();
-  toast(`重命名成功，已移动 ${total} 个文件`, 'success');
+  toast(t('重命名成功，已移动 {0} 个文件', total), 'success');
 }
 
 async function downloadFolder(prefix) {
   const items = getFilesUnderPrefix(prefix);
-  if (items.length === 0) { toast('文件夹为空', 'warning'); return; }
-  const statusToast = toast('下载中 0/' + items.length, 'info', 0);
+  if (items.length === 0) { toast(t('文件夹为空'), 'warning'); return; }
+  const statusToast = toast(t('下载中 {0}/{1}', 0, items.length), 'info', 0);
   let done = 0;
   for (const f of items) {
     try {
@@ -1936,15 +1944,15 @@ async function downloadFolder(prefix) {
       console.error('[my-pan] 下载文件夹文件失败', f.key, err);
     }
     done++;
-    statusToast.textContent = `下载中 ${done}/${items.length}`;
+    statusToast.textContent = t('下载中 {0}/{1}', done, items.length);
   }
-  toast(`下载完成，共 ${items.length} 个文件`, 'success');
+  toast(t('下载完成，共 {0} 个文件', items.length), 'success');
 }
 
 function updateBreadcrumb() {
   const bc = document.getElementById('breadcrumb');
   const parts = currentPrefix.split('/').filter(Boolean);
-  let html = '<span class="breadcrumb-item" data-prefix="">根目录</span>';
+  let html = `<span class="breadcrumb-item" data-prefix="">${t('根目录')}</span>`;
   let path = '';
   for (let i = 0; i < parts.length; i++) {
     path += parts[i] + '/';
@@ -1976,7 +1984,8 @@ function formatDate(d) {
   if (!d) return '-';
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d;
-  return dt.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const locale = getLang() === 'en' ? 'en-US' : 'zh-CN';
+  return dt.toLocaleString(locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 // Mirrors worker/src/shares.ts TEXT_EXTS + MEDIA_EXTS
@@ -2196,47 +2205,47 @@ async function createShare(key) {
   overlay.className = 'dialog-overlay';
   overlay.innerHTML = `
     <div class="dialog-box" style="max-width:440px">
-      <button class="dialog-close" title="关闭">&times;</button>
-      <h3>创建分享</h3>
+      <button class="dialog-close" title="${t('关闭')}">&times;</button>
+      <h3>${t('创建分享')}</h3>
       <p style="font-size:13px;color:#888;margin-bottom:16px">${esc(key)}</p>
       <div class="share-pw-row">
         <div class="share-field">
-          <label>分享密码（6位字母或数字）</label>
-          <input type="text" class="share-pw-input" maxlength="6" placeholder="留空自动生成" autofocus>
+          <label>${t('分享密码（6位字母或数字）')}</label>
+          <input type="text" class="share-pw-input" maxlength="6" placeholder="${t('留空自动生成')}" autofocus>
         </div>
-        <button class="share-gen-btn">随机生成</button>
+        <button class="share-gen-btn">${t('随机生成')}</button>
       </div>
       <div class="share-field">
-        <label>过期时间</label>
+        <label>${t('过期时间')}</label>
         <select class="share-expire-select">
-          <option value="1">1 小时</option>
-          <option value="24">1 天</option>
-          <option value="168" selected>7 天</option>
-          <option value="720">30 天</option>
-          <option value="">永不过期</option>
+          <option value="1">${t('1 小时')}</option>
+          <option value="24">${t('1 天')}</option>
+          <option value="168" selected>${t('7 天')}</option>
+          <option value="720">${t('30 天')}</option>
+          <option value="">${t('永不过期')}</option>
         </select>
       </div>
       <div class="share-field" style="margin-bottom:0">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" class="share-link-pw-toggle" checked style="width:auto;cursor:pointer">
-          链接携带密码（方便直接访问）
+          ${t('链接携带密码（方便直接访问）')}
         </label>
       </div>
       <div class="share-result" style="display:none" id="share-result-box">
-        <div class="label">分享链接已生成</div>
+        <div class="label">${t('分享链接已生成')}</div>
         <div class="share-link-row">
           <input type="text" id="share-link-input" readonly>
-          <button id="share-copy-btn">复制</button>
+          <button id="share-copy-btn">${t('复制')}</button>
         </div>
-        <div style="color:#888;font-size:12px;margin-top:4px">密码：<strong id="share-pw-display"></strong></div>
+        <div style="color:#888;font-size:12px;margin-top:4px">${t('密码')}：<strong id="share-pw-display"></strong></div>
         <div class="share-qrcode" id="share-qrcode-box">
           <canvas id="share-qrcode-canvas" style="width:180px;height:180px;display:block;margin:12px auto 0;border-radius:8px;border:1px solid #eee"></canvas>
-          <button class="share-save-qr-btn" id="share-save-qr-btn">保存二维码</button>
+          <button class="share-save-qr-btn" id="share-save-qr-btn">${t('保存二维码')}</button>
         </div>
       </div>
       <div class="dialog-buttons" id="share-buttons">
-        <button class="btn-cancel">取消</button>
-        <button class="btn-confirm" id="share-create-btn" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;border-color:transparent">创建</button>
+        <button class="btn-cancel">${t('取消')}</button>
+        <button class="btn-confirm" id="share-create-btn" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;border-color:transparent">${t('创建')}</button>
       </div>
     </div>
   `;
@@ -2288,15 +2297,15 @@ async function createShare(key) {
       resultBox.style.display = 'block';
       buttonsBox.style.display = 'none';
     } catch (err) {
-      toast('创建分享失败: ' + err.message, 'error');
+      toast(t('创建分享失败') + ': ' + err.message, 'error');
     }
   });
 
   // Copy button
   overlay.querySelector('#share-copy-btn').addEventListener('click', () => {
-    navigator.clipboard.writeText(linkInput.value).then(() => toast('链接已复制', 'success')).catch(() => {
+    navigator.clipboard.writeText(linkInput.value).then(() => toast(t('链接已复制'), 'success')).catch(() => {
       linkInput.select();
-      toast('请手动复制链接', 'info');
+      toast(t('请手动复制链接'), 'info');
     });
   });
 
@@ -2310,7 +2319,7 @@ async function createShare(key) {
       a.download = 'qrcode.png';
       a.click();
       URL.revokeObjectURL(url);
-      toast('二维码已保存', 'success');
+      toast(t('二维码已保存'), 'success');
     });
   });
 
@@ -2325,22 +2334,22 @@ function showShareAddrDialog(shareUrl, password) {
   overlay.className = 'dialog-overlay';
   overlay.innerHTML = `
     <div class="dialog-box" style="max-width:480px">
-      <button class="dialog-close" title="关闭">&times;</button>
-      <h3>分享地址</h3>
+      <button class="dialog-close" title="${t('关闭')}">&times;</button>
+      <h3>${t('分享地址')}</h3>
       <div class="share-result" style="display:block">
-        <div class="label">分享链接</div>
+        <div class="label">${t('分享链接')}</div>
         <div class="share-link-row">
           <input type="text" id="share-addr-input" readonly value="${escAttr(shareUrl)}">
-          <button id="share-addr-copy-btn">复制</button>
+          <button id="share-addr-copy-btn">${t('复制')}</button>
         </div>
-        <div style="color:#888;font-size:12px;margin-top:4px">密码：<strong id="share-addr-pw-display">${esc(password)}</strong></div>
+        <div style="color:#888;font-size:12px;margin-top:4px">${t('密码')}：<strong id="share-addr-pw-display">${esc(password)}</strong></div>
         <div class="share-qrcode" style="margin-top:12px">
           <canvas id="share-addr-qr-canvas" style="width:180px;height:180px;display:block;margin:12px auto 0;border-radius:8px;border:1px solid #eee"></canvas>
-          <button class="share-save-qr-btn" id="share-addr-save-qr-btn">保存二维码</button>
+          <button class="share-save-qr-btn" id="share-addr-save-qr-btn">${t('保存二维码')}</button>
         </div>
       </div>
       <div class="dialog-buttons" style="margin-top:16px">
-        <button class="btn-cancel">关闭</button>
+        <button class="btn-cancel">${t('关闭')}</button>
       </div>
     </div>
   `;
@@ -2351,9 +2360,9 @@ function showShareAddrDialog(shareUrl, password) {
 
   const linkInput = overlay.querySelector('#share-addr-input');
   overlay.querySelector('#share-addr-copy-btn').addEventListener('click', () => {
-    navigator.clipboard.writeText(linkInput.value).then(() => toast('链接已复制', 'success')).catch(() => {
+    navigator.clipboard.writeText(linkInput.value).then(() => toast(t('链接已复制'), 'success')).catch(() => {
       linkInput.select();
-      toast('请手动复制链接', 'info');
+      toast(t('请手动复制链接'), 'info');
     });
   });
 
@@ -2368,7 +2377,7 @@ function showShareAddrDialog(shareUrl, password) {
       a.download = 'qrcode.png';
       a.click();
       URL.revokeObjectURL(url);
-      toast('二维码已保存', 'success');
+      toast(t('二维码已保存'), 'success');
     });
   });
 }
@@ -2378,15 +2387,15 @@ async function manageShares() {
   overlay.className = 'dialog-overlay';
   overlay.innerHTML = `
     <div class="dialog-box" style="max-width:900px">
-      <button class="dialog-close" title="关闭">&times;</button>
-      <h3>管理分享</h3>
+      <button class="dialog-close" title="${t('关闭')}">&times;</button>
+      <h3>${t('管理分享')}</h3>
       <div class="share-mgmt-toolbar" id="share-mgmt-toolbar" style="display:none">
         <span class="share-batch-info" id="share-batch-info"></span>
-        <button class="btn share-batch-del-btn" id="share-batch-del-btn" style="display:none">批量删除</button>
+        <button class="btn share-batch-del-btn" id="share-batch-del-btn" style="display:none">${t('批量删除')}</button>
       </div>
-      <div id="share-mgmt-body"><p style="color:#888;font-size:14px;text-align:center;padding:20px">加载中...</p></div>
+      <div id="share-mgmt-body"><p style="color:#888;font-size:14px;text-align:center;padding:20px">${t('加载中...')}</p></div>
       <div class="dialog-buttons" style="margin-top:16px">
-        <button class="btn-cancel">关闭</button>
+        <button class="btn-cancel">${t('关闭')}</button>
       </div>
     </div>
   `;
@@ -2407,14 +2416,14 @@ async function loadShareList(container, toolbar, page) {
     const resp = await fetch(apiBase + '/api/shares?page=' + page + '&pageSize=' + pageSize, {
       headers: { 'X-Auth-Token': token },
     });
-    if (!resp.ok) throw new Error('获取分享列表失败: ' + resp.status);
+    if (!resp.ok) throw new Error(t('获取分享列表失败') + ': ' + resp.status);
     const data = await resp.json();
     const shares = data.items;
     const total = data.total;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     if (shares.length === 0) {
-      container.innerHTML = '<div class="share-empty">暂无分享记录</div>';
+      container.innerHTML = '<div class="share-empty">' + t('暂无分享记录') + '</div>';
       if (toolbar) toolbar.style.display = 'none';
       return;
     }
@@ -2442,8 +2451,8 @@ async function loadShareList(container, toolbar, page) {
     }
 
     let html = `<table class="share-mgmt-table" id="share-mgmt-table"><thead><tr>
-      <th style="width:5%"><input type="checkbox" class="share-row-checkbox" id="share-select-all-cb" title="全选"></th>
-      <th style="width:25%" data-sort="file_name">文件名</th><th style="width:10%" data-sort="password">密码</th><th style="width:15%" data-sort="created_at">创建时间</th><th style="width:15%" data-sort="expires_at">过期时间</th><th style="width:10%" data-sort="access_count">访问次数</th><th style="width:20%">操作</th>
+      <th style="width:5%"><input type="checkbox" class="share-row-checkbox" id="share-select-all-cb" title="${t('全选')}"></th>
+      <th style="width:25%" data-sort="file_name">${t('文件名')}</th><th style="width:10%" data-sort="password">${t('密码')}</th><th style="width:15%" data-sort="created_at">${t('创建时间')}</th><th style="width:15%" data-sort="expires_at">${t('过期时间')}</th><th style="width:10%" data-sort="access_count">${t('访问次数')}</th><th style="width:20%">${t('操作')}</th>
     </tr></thead><tbody id="share-mgmt-tbody">`;
     for (const s of shares) {
       const url = (apiBase || location.origin) + '/s/' + s.id + '?p=' + s.password;
@@ -2452,11 +2461,11 @@ async function loadShareList(container, toolbar, page) {
         <td class="name-col" title="${esc(s.file_key)}">${esc(s.file_name)}</td>
         <td>${esc(s.password)}</td>
         <td>${formatDate(s.created_at)}</td>
-        <td>${s.expires_at ? formatDate(s.expires_at) : '永不过期'}</td>
+        <td>${s.expires_at ? formatDate(s.expires_at) : t('永不过期')}</td>
         <td>${s.access_count}</td>
         <td>
-          <button class="btn-sm btn-share-addr" data-url="${escAttr(url)}" data-pw="${escAttr(s.password)}">分享地址</button>
-          <button class="btn-sm btn-del" data-id="${escAttr(s.id)}">删除</button>
+          <button class="btn-sm btn-share-addr" data-url="${escAttr(url)}" data-pw="${escAttr(s.password)}">${t('分享地址')}</button>
+          <button class="btn-sm btn-del" data-id="${escAttr(s.id)}">${t('删除')}</button>
         </td>
       </tr>`;
     }
@@ -2475,7 +2484,7 @@ async function loadShareList(container, toolbar, page) {
     }
     html += '<button class="share-page-btn" ' + (page >= totalPages ? 'disabled' : '') + ' data-page="' + (page + 1) + '" title="下一页">&rsaquo;</button>';
     html += '<button class="share-page-btn" ' + (page >= totalPages ? 'disabled' : '') + ' data-page="' + totalPages + '" title="尾页">&raquo;</button>';
-    html += '<span class="share-page-info">共 ' + total + ' 条</span>';
+    html += '<span class="share-page-info">' + t('共 {0} 条', total) + '</span>';
     html += '</div>';
 
     container.innerHTML = html;
@@ -2541,7 +2550,7 @@ async function loadShareList(container, toolbar, page) {
     function updateBatchUI() {
       const selectAll = container.dataset.selectAll === '1';
       const count = selectAll ? total : getSelectedIds().length;
-      if (batchInfo) batchInfo.textContent = count > 0 ? '已选 ' + count + ' 项' : '';
+      if (batchInfo) batchInfo.textContent = count > 0 ? t('已选 {0} 项', count) : '';
       if (batchDelBtn) batchDelBtn.style.display = count > 0 ? '' : 'none';
       if (selectAllCb) {
         if (selectAll) {
@@ -2584,8 +2593,8 @@ async function loadShareList(container, toolbar, page) {
         const selectAll = container.dataset.selectAll === '1';
         const ids = selectAll ? [] : getSelectedIds();
         if (!selectAll && ids.length === 0) return;
-        const label = selectAll ? '全部 ' + total + ' 个' : ids.length + ' 个';
-        showConfirmDialog('确认批量删除', '确定要删除选中的 <strong>' + label + '</strong> 分享吗？此操作不可撤销。', '删除', async () => {
+        const label = selectAll ? t('全部') + ' ' + total + ' ' + t('个') : ids.length + ' ' + t('个');
+        showConfirmDialog(t('确认批量删除'), t('确定要删除选中的') + ' <strong>' + label + '</strong> ' + t('分享') + t('？此操作不可撤销。'), t('删除'), async () => {
           try {
             const body = selectAll ? { delete_all: true } : { ids };
             const resp = await fetch(apiBase + '/api/shares/batch-delete', {
@@ -2593,11 +2602,11 @@ async function loadShareList(container, toolbar, page) {
               headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
               body: JSON.stringify(body),
             });
-            if (!resp.ok) throw new Error('批量删除失败');
-            toast('已删除 ' + label + ' 分享', 'success');
+            if (!resp.ok) throw new Error(t('批量删除失败'));
+            toast(t('已删除') + ' ' + label + ' ' + t('分享'), 'success');
             reloadAfterDelete();
           } catch (err) {
-            toast('批量删除失败: ' + err.message, 'error');
+            toast(t('批量删除失败') + ': ' + err.message, 'error');
           }
         });
       };
@@ -2613,17 +2622,17 @@ async function loadShareList(container, toolbar, page) {
     container.querySelectorAll('.btn-del').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
-        showConfirmDialog('确认删除', '确定要删除此分享吗？', '删除', async () => {
+        showConfirmDialog(t('确认删除'), t('确定要删除此分享吗？'), t('删除'), async () => {
           try {
             const resp = await fetch(apiBase + '/api/shares/' + id, {
               method: 'DELETE',
               headers: { 'X-Auth-Token': token },
             });
             if (!resp.ok) throw new Error('删除失败');
-            toast('分享已删除', 'success');
+            toast(t('分享已删除'), 'success');
             reloadAfterDelete();
           } catch (err) {
-            toast('删除分享失败: ' + err.message, 'error');
+            toast(t('删除分享失败') + ': ' + err.message, 'error');
           }
         });
       });
@@ -2631,7 +2640,7 @@ async function loadShareList(container, toolbar, page) {
 
     updateBatchUI();
   } catch (err) {
-    container.innerHTML = '<div class="share-empty">加载失败: ' + esc(err.message) + '</div>';
+    container.innerHTML = '<div class="share-empty">' + t('加载失败') + ': ' + esc(err.message) + '</div>';
     if (toolbar) toolbar.style.display = 'none';
   }
 }

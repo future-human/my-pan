@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的网盘</title>
+  <title data-i18n="我的网盘">我的网盘</title>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%234285f4'/><stop offset='1' stop-color='%231a73e8'/></linearGradient></defs><ellipse cx='38' cy='52' rx='28' ry='22' fill='url(%23g)'/><ellipse cx='62' cy='42' rx='28' ry='28' fill='url(%23g)'/><ellipse cx='50' cy='34' rx='26' ry='24' fill='url(%23g)'/></svg>">
   <link rel="stylesheet" href="style.css">
@@ -16,13 +16,13 @@
   <!-- Login -->
   <div id="login-overlay">
     <div class="login-box" id="login-box">
-      <h1>我的网盘</h1>
-      <div id="login-loading">加载中...</div>
+      <h1 data-i18n="我的网盘">我的网盘</h1>
+      <div id="login-loading" data-i18n="加载中...">加载中...</div>
       <div id="login-form" style="display:none">
-        <p>请输入访问密码</p>
-        <input type="password" id="password-input" placeholder="密码" autofocus autocomplete="off">
-        <button type="button" id="login-btn">进入</button>
-        <div class="login-error" id="login-error">密码错误，请重试</div>
+        <p data-i18n="请输入访问密码">请输入访问密码</p>
+        <input type="password" id="password-input" data-i18n="密码" placeholder="密码" autofocus autocomplete="off">
+        <button type="button" id="login-btn" data-i18n="进入">进入</button>
+        <div class="login-error" id="login-error" data-i18n="密码错误，请重试">密码错误，请重试</div>
       </div>
     </div>
   </div>
@@ -32,13 +32,13 @@
 
   <!-- Drag overlay -->
   <div class="drag-overlay" id="drag-overlay">
-    <div class="drag-overlay-content">📁 释放上传</div>
+    <div class="drag-overlay-content" data-i18n="📁 释放上传">📁 释放上传</div>
   </div>
 
   <!-- Header -->
   <header>
     <div class="header-left">
-      <h1>我的网盘</h1>
+      <h1 data-i18n="我的网盘">我的网盘</h1>
       <div class="storage-select" id="storage-select">
         <span class="storage-select-trigger" id="storage-select-trigger">
           <span id="storage-select-label"></span>
@@ -53,31 +53,38 @@
         <span class="usage-text" id="usage-text"></span>
       </div>
     </div>
-    <button class="btn-logout" id="logout-btn" title="退出登录">退出</button>
+    <div class="header-right">
+      <button class="btn-lang" id="lang-btn" title="Switch to English">
+        <svg class="lang-icon" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM101.63,168h52.74C149,186.34,140,202.87,128,215.89,116,202.87,107,186.34,101.63,168ZM98,152a145.72,145.72,0,0,1,0-48h60a145.72,145.72,0,0,1,0,48ZM40,128a87.61,87.61,0,0,1,3.33-24H81.79a161.79,161.79,0,0,0,0,48H43.33A87.61,87.61,0,0,1,40,128ZM154.37,88H101.63C107,69.66,116,53.13,128,40.11,140,53.13,149,69.66,154.37,88Zm19.84,16h38.46a88.15,88.15,0,0,1,0,48H174.21a161.79,161.79,0,0,0,0-48Zm32.16-16H170.94a142.39,142.39,0,0,0-20.26-45A88.37,88.37,0,0,1,206.37,88ZM105.32,43A142.39,142.39,0,0,0,85.06,88H49.63A88.37,88.37,0,0,1,105.32,43ZM49.63,168H85.06a142.39,142.39,0,0,0,20.26,45A88.37,88.37,0,0,1,49.63,168Zm101.05,45a142.39,142.39,0,0,0,20.26-45h35.43A88.37,88.37,0,0,1,150.68,213Z"/>
+        </svg>
+      </button>
+      <button class="btn-logout" id="logout-btn" title="退出登录" data-i18n="退出">退出</button>
+    </div>
   </header>
 
   <!-- Hidden file inputs for upload -->
   <input type="file" id="file-input" multiple style="display:none">
   <!-- Toolbar -->
   <div class="toolbar">
-    <button class="btn btn-upload" id="upload-btn">上传</button>
-    <button class="btn btn-primary" id="new-folder-btn">新建文件夹</button>
-    <button class="btn btn-refresh" id="refresh-btn">刷新</button>
-    <button class="btn btn-shares" id="manage-shares-btn" style="display:none">管理分享</button>
-    <input type="text" class="search-input" id="search-input" placeholder="搜索文件...">
+    <button class="btn btn-upload" id="upload-btn" data-i18n="上传">上传</button>
+    <button class="btn btn-primary" id="new-folder-btn" data-i18n="新建文件夹">新建文件夹</button>
+    <button class="btn btn-refresh" id="refresh-btn" data-i18n="刷新">刷新</button>
+    <button class="btn btn-shares" id="manage-shares-btn" style="display:none" data-i18n="管理分享">管理分享</button>
+    <input type="text" class="search-input" id="search-input" data-i18n="搜索文件..." placeholder="搜索文件...">
     <span class="spacer"></span>
     <span class="count" id="file-count"></span>
     <span class="batch-info" id="batch-info">
       <span id="selected-text">已选 <span id="selected-count">0</span> 个</span>
-      <button class="btn batch-dl" id="batch-download-btn">批量下载</button>
-      <button class="btn batch-del" id="batch-delete-btn">批量删除</button>
-      <button class="btn btn-clear" id="clear-select-btn">清空选择</button>
+      <button class="btn batch-dl" id="batch-download-btn" data-i18n="批量下载">批量下载</button>
+      <button class="btn batch-del" id="batch-delete-btn" data-i18n="批量删除">批量删除</button>
+      <button class="btn btn-clear" id="clear-select-btn" data-i18n="清空选择">清空选择</button>
     </span>
   </div>
 
   <!-- Breadcrumb -->
   <div class="breadcrumb" id="breadcrumb">
-    <span class="breadcrumb-item" data-prefix="">根目录</span>
+    <span class="breadcrumb-item" data-prefix="" data-i18n="根目录">根目录</span>
   </div>
 
   <!-- File list -->
@@ -86,17 +93,17 @@
       <thead>
         <tr>
           <th><input type="checkbox" id="select-all" title="全选"></th>
-          <th data-sort="name" class="sorted" data-dir="asc">文件名</th>
-          <th data-sort="size">大小</th>
-          <th data-sort="date">修改时间</th>
-          <th>操作</th>
+          <th data-sort="name" class="sorted" data-dir="asc" data-i18n="文件名">文件名</th>
+          <th data-sort="size" data-i18n="大小">大小</th>
+          <th data-sort="date" data-i18n="修改时间">修改时间</th>
+          <th data-i18n="操作">操作</th>
         </tr>
       </thead>
       <tbody id="file-tbody"></tbody>
     </table>
     <div class="empty" id="empty-state">
       <div class="icon">📭</div>
-      <p id="empty-text">存储桶中没有文件</p>
+      <p id="empty-text" data-i18n="存储桶中没有文件">存储桶中没有文件</p>
     </div>
   </div>
 
@@ -107,7 +114,7 @@
         <span class="preview-title" id="preview-title"></span>
         <div class="preview-header-right">
           <span class="preview-charset-group" id="preview-charset-group">
-            <span>编码</span>
+            <span data-i18n="编码">编码</span>
             <select class="preview-charset" id="preview-charset">
               <option value="utf-8">UTF-8</option>
               <option value="gbk">GBK</option>
@@ -134,11 +141,11 @@
 
   <!-- Context menu -->
   <div class="context-menu" id="context-menu">
-    <div class="context-item" data-action="download">下载</div>
-    <div class="context-item" data-action="rename">重命名</div>
-    <div class="context-item" data-action="delete">删除</div>
-    <div class="context-item" data-action="share" style="display:none">分享</div>
-    <div class="context-item" data-action="preview">预览</div>
+    <div class="context-item" data-action="download" data-i18n="下载">下载</div>
+    <div class="context-item" data-action="rename" data-i18n="重命名">重命名</div>
+    <div class="context-item" data-action="delete" data-i18n="删除">删除</div>
+    <div class="context-item" data-action="share" style="display:none" data-i18n="分享">分享</div>
+    <div class="context-item" data-action="preview" data-i18n="预览">预览</div>
   </div>
 
   <!-- 分离部署时script标签指定data-api-base属性 -->
@@ -154,6 +161,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.5.2/qrcode.min.js"></script>
   <script>window.qrcode||document.write('<script src="qrcode.js"><\/script>')</script>
 
+  <script src="i18n.js"></script>
   <script src="app.js">
   </script>
 </body>
