@@ -189,7 +189,14 @@
   };
 
   let lang = 'zh';
-  try { lang = localStorage.getItem('my-pan_lang') || 'zh'; } catch (e) { /* ignore */ }
+  try {
+    const saved = localStorage.getItem('my-pan_lang');
+    if (saved) {
+      lang = saved;
+    } else {
+      lang = (navigator.language || '').startsWith('zh') ? 'zh' : 'en';
+    }
+  } catch (e) { /* ignore */ }
 
   window.t = function (text) {
     if (lang === 'zh') return text;
