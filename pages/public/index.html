@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="我的网盘">我的网盘</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%234285f4'/><stop offset='1' stop-color='%231a73e8'/></linearGradient></defs><ellipse cx='38' cy='52' rx='28' ry='22' fill='url(%23g)'/><ellipse cx='62' cy='42' rx='28' ry='28' fill='url(%23g)'/><ellipse cx='50' cy='34' rx='26' ry='24' fill='url(%23g)'/></svg>">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="preview.css">
+
+</head>
+
+<body>
+
+  <!-- Login -->
+  <div id="login-overlay">
+    <button class="btn-lang btn-lang-fixed" id="lang-btn-login" title="Switch to English"><svg class="lang-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path fill="#1677FF" d="M310.656 64h-64.64l0.128 91.008H64v292.224h182.144l-0.064 136.64h64.576V447.296H492.8V154.88l-182.08 0.064V64zM246.144 219.52v163.2H128.512V219.52h117.632z m182.08 0v163.2H310.656V219.52h117.568z"/><path fill="#8C8C8C" d="M770.24 492.224h-73.024L507.52 959.744h69.376l51.392-121.408 3.328-8.32h204.16l3.328 8.32 51.264 121.408H960L770.24 492.16z m-36.48 82.432l12.288 30.784 56.704 141.824 7.232 18.176H657.28l7.296-18.176 56.832-141.824 12.352-30.72z"/><path fill="#8C8C8C" d="M174.08 733.76l-0.064-77.824H109.44v77.824a168.832 168.832 0 0 0 157.76 168.512l11.072 0.32h123.328v-64.576H277.952l-7.36-0.192a104.384 104.384 0 0 1-96.512-104.064z m436.288-559.68h123.392c57.6 0 104.32 46.72 104.32 104.32v77.824h64.448l0.064-77.824a168.832 168.832 0 0 0-157.76-168.448l-11.072-0.384H610.368V174.08z"/></svg></button>
+    <div class="login-box" id="login-box">
+      <h1 data-i18n="我的网盘">我的网盘</h1>
+      <div id="login-loading" data-i18n="加载中...">加载中...</div>
+      <div id="login-form" style="display:none">
+        <p data-i18n="请输入访问密码">请输入访问密码</p>
+        <input type="password" id="password-input" data-i18n="密码" placeholder="密码" autofocus autocomplete="off">
+        <button type="button" id="login-btn" data-i18n="进入">进入</button>
+        <div class="login-error" id="login-error" data-i18n="密码错误，请重试">密码错误，请重试</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <!-- Drag overlay -->
+  <div class="drag-overlay" id="drag-overlay">
+    <div class="drag-overlay-content" data-i18n="📁 释放上传">📁 释放上传</div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <h1 data-i18n="我的网盘">我的网盘</h1>
+      <div class="storage-select" id="storage-select">
+        <span class="storage-select-trigger" id="storage-select-trigger">
+          <span id="storage-select-label"></span>
+          <span class="storage-select-arrow"></span>
+        </span>
+        <div class="storage-select-dropdown" id="storage-select-dropdown"></div>
+      </div>
+      <div class="usage" id="usage">
+        <div class="usage-bar-wrap">
+          <div class="usage-bar-fill" id="usage-bar-fill"></div>
+        </div>
+        <span class="usage-text" id="usage-text"></span>
+      </div>
+    </div>
+      <div class="header-right">
+      <button class="btn-logout" id="logout-btn" title="退出登录" data-i18n="退出">退出</button>
+      <button class="btn-lang" id="lang-btn" title="Switch to English"><svg class="lang-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path fill="#1677FF" d="M310.656 64h-64.64l0.128 91.008H64v292.224h182.144l-0.064 136.64h64.576V447.296H492.8V154.88l-182.08 0.064V64zM246.144 219.52v163.2H128.512V219.52h117.632z m182.08 0v163.2H310.656V219.52h117.568z"/><path fill="#8C8C8C" d="M770.24 492.224h-73.024L507.52 959.744h69.376l51.392-121.408 3.328-8.32h204.16l3.328 8.32 51.264 121.408H960L770.24 492.16z m-36.48 82.432l12.288 30.784 56.704 141.824 7.232 18.176H657.28l7.296-18.176 56.832-141.824 12.352-30.72z"/><path fill="#8C8C8C" d="M174.08 733.76l-0.064-77.824H109.44v77.824a168.832 168.832 0 0 0 157.76 168.512l11.072 0.32h123.328v-64.576H277.952l-7.36-0.192a104.384 104.384 0 0 1-96.512-104.064z m436.288-559.68h123.392c57.6 0 104.32 46.72 104.32 104.32v77.824h64.448l0.064-77.824a168.832 168.832 0 0 0-157.76-168.448l-11.072-0.384H610.368V174.08z"/></svg></button>
+    </div>
+  </header>
+
+  <!-- Hidden file inputs for upload -->
+  <input type="file" id="file-input" multiple style="display:none">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="btn btn-upload" id="upload-btn" data-i18n="上传">上传</button>
+    <button class="btn btn-primary" id="new-folder-btn" data-i18n="新建文件夹">新建文件夹</button>
+    <button class="btn btn-refresh" id="refresh-btn" data-i18n="刷新">刷新</button>
+    <button class="btn btn-shares" id="manage-shares-btn" style="display:none" data-i18n="管理分享">管理分享</button>
+    <input type="text" class="search-input" id="search-input" data-i18n="搜索文件..." placeholder="搜索文件...">
+    <span class="spacer"></span>
+    <span class="count" id="file-count"></span>
+    <span class="batch-info" id="batch-info">
+      <span id="selected-text">已选 <span id="selected-count">0</span> 个</span>
+      <button class="btn batch-dl" id="batch-download-btn" data-i18n="批量下载">批量下载</button>
+      <button class="btn batch-del" id="batch-delete-btn" data-i18n="批量删除">批量删除</button>
+      <button class="btn btn-clear" id="clear-select-btn" data-i18n="清空选择">清空选择</button>
+    </span>
+  </div>
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="breadcrumb-item" data-prefix="" data-i18n="根目录">根目录</span>
+  </div>
+
+  <!-- File list -->
+  <div class="file-list">
+    <table id="file-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="select-all" title="全选" data-i18n="全选"></th>
+          <th data-sort="name" class="sorted" data-dir="asc" data-i18n="文件名">文件名</th>
+          <th data-sort="size" data-i18n="大小">大小</th>
+          <th data-sort="date" data-i18n="修改时间">修改时间</th>
+          <th data-i18n="操作">操作</th>
+        </tr>
+      </thead>
+      <tbody id="file-tbody"></tbody>
+    </table>
+    <!-- Skeleton loading -->
+    <div class="skeleton" id="skeleton-loading">
+      <div class="sk-row"><div class="sk-bar w50"></div><div class="sk-bar w30"></div><div class="sk-bar w20"></div><div class="sk-bar w15"></div></div>
+      <div class="sk-row"><div class="sk-bar w60"></div><div class="sk-bar w25"></div><div class="sk-bar w10"></div><div class="sk-bar w15"></div></div>
+      <div class="sk-row"><div class="sk-bar w40"></div><div class="sk-bar w35"></div><div class="sk-bar w15"></div><div class="sk-bar w15"></div></div>
+      <div class="sk-row"><div class="sk-bar w55"></div><div class="sk-bar w20"></div><div class="sk-bar w25"></div><div class="sk-bar w15"></div></div>
+      <div class="sk-row"><div class="sk-bar w45"></div><div class="sk-bar w30"></div><div class="sk-bar w10"></div><div class="sk-bar w15"></div></div>
+      <div class="sk-row"><div class="sk-bar w65"></div><div class="sk-bar w15"></div><div class="sk-bar w20"></div><div class="sk-bar w15"></div></div>
+      <div class="sk-row"><div class="sk-bar w35"></div><div class="sk-bar w40"></div><div class="sk-bar w10"></div><div class="sk-bar w15"></div></div>
+      <div class="sk-row"><div class="sk-bar w70"></div><div class="sk-bar w10"></div><div class="sk-bar w20"></div><div class="sk-bar w15"></div></div>
+    </div>
+    <div class="empty" id="empty-state" style="display:none">
+      <div class="icon">📭</div>
+      <p id="empty-text" data-i18n="存储桶中没有文件">存储桶中没有文件</p>
+    </div>
+  </div>
+
+  <!-- Preview modal -->
+  <div class="preview-overlay" id="preview-overlay">
+    <div class="preview-container">
+      <div class="preview-header">
+        <span class="preview-title" id="preview-title"></span>
+        <div class="preview-header-right">
+          <span class="preview-charset-group" id="preview-charset-group">
+            <span data-i18n="编码">编码</span>
+            <select class="preview-charset" id="preview-charset">
+              <option value="utf-8">UTF-8</option>
+              <option value="gbk">GBK</option>
+              <option value="gb2312">GB2312</option>
+              <option value="gb18030">GB18030</option>
+              <option value="big5">Big5</option>
+              <option value="shift_jis">Shift_JIS</option>
+              <option value="euc-jp">EUC-JP</option>
+              <option value="euc-kr">EUC-KR</option>
+              <option value="iso-8859-1">Latin-1</option>
+              <option value="windows-1252">Windows-1252</option>
+            </select>
+          </span>
+          <button class="preview-close" id="preview-close">&times;</button>
+        </div>
+      </div>
+      <div class="preview-body">
+        <div class="preview-loading" id="preview-loading"></div>
+        <iframe id="preview-iframe" allow="fullscreen; autoplay" sandbox="allow-scripts allow-same-origin" style="display:none"></iframe>
+        <div id="preview-pdf" class="preview-pdf-container" style="display:none"></div>
+        <div id="preview-office" class="preview-office-container" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context menu -->
+  <div class="context-menu" id="context-menu">
+    <div class="context-item" data-action="download" data-i18n="下载">下载</div>
+    <div class="context-item" data-action="rename" data-i18n="重命名">重命名</div>
+    <div class="context-item" data-action="delete" data-i18n="删除">删除</div>
+    <div class="context-item" data-action="share" style="display:none" data-i18n="分享">分享</div>
+    <div class="context-item" data-action="preview" data-i18n="预览">预览</div>
+  </div>
+
+  <!-- 分离部署时script标签指定data-api-base属性 -->
+  <!-- <script src="app.js" data-api-base="https://api.example.com"> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- Column Resizer: CDN + local fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/column-resizer@1.4.0/dist/column-resizer.min.js"></script>
+  <script>window.ColumnResizer||document.write('<script src="column-resizer.js"><\/script>')</script>
+
+  <!-- QR Code Generator: CDN + local fallback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.5.2/qrcode.min.js"></script>
+  <script>window.qrcode||document.write('<script src="qrcode.js"><\/script>')</script>
+
+  <script src="i18n.js"></script>
+  <script src="app.js">
+  </script>
+</body>
+
+</html>

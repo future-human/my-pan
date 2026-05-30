@@ -1,0 +1,234 @@
+/* ===== Shared components (main page + share pages) ===== */
+
+/* Lang toggle button — all pages */
+.btn-lang {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+
+.btn-lang:hover {
+  color: #0066ff;
+  background: #f0f4ff;
+}
+
+.lang-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+/* Page-level fixed positioning (login + share pages) */
+.btn-lang-fixed {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1001;
+}
+
+/* ===== Preview Modal ===== */
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .5);
+  z-index: 600;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-overlay.visible {
+  display: flex;
+}
+
+.preview-container {
+  background: #fff;
+  border-radius: 12px;
+  width: 90vw;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, .2);
+  overflow: hidden;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.preview-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.preview-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.preview-charset-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+}
+
+.preview-charset {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  outline: none;
+}
+
+.preview-charset:focus {
+  border-color: #0066ff;
+}
+
+.preview-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+  line-height: 1;
+}
+
+.preview-close:hover {
+  color: #e00;
+  background: #fef2f2;
+}
+
+.preview-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.preview-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.preview-pdf-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #525659;
+}
+
+.pdf-page-canvas {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .5);
+  max-width: 100%;
+  height: auto;
+}
+
+.preview-office-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 24px 32px;
+  background: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.preview-office-container table {
+  border-collapse: collapse;
+  width: auto;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.preview-office-container td,
+.preview-office-container th {
+  border: 1px solid #d0d0d0;
+  padding: 4px 10px;
+  min-width: 56px;
+}
+
+.preview-office-container th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.xlsx-sheet h3 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  color: #555;
+}
+
+.xlsx-sheet:first-child h3 {
+  margin-top: 0;
+}
+
+.preview-loading,
+.preview-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 16px;
+  color: #aaa;
+}
+
+.preview-loading::before {
+  content: '';
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #0066ff;
+  border-radius: 50%;
+  animation: preview-spin .7s linear infinite;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+@keyframes preview-spin {
+  to { transform: rotate(360deg); }
+}
+
+.preview-error {
+  color: #e74c3c;
+}
