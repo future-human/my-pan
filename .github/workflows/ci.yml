@@ -1,0 +1,25 @@
+name: CI
+
+# =============================================================================
+# PR 门禁 — 合并到 master 之前必须通过
+# =============================================================================
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - working-directory: worker
+        run: npm ci
+
+      - working-directory: worker
+        run: npx tsc --noEmit
