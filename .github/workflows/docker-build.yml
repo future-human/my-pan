@@ -9,7 +9,7 @@ on:
       image:
         required: true
         type: string
-        description: '完整镜像名，如 myuser/my-pan'
+        description: '镜像仓库名，如 my-pan'
       tags:
         required: true
         type: string
@@ -41,7 +41,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ inputs.image }}
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image }}
           tags: ${{ inputs.tags }}
 
       - name: Build and push

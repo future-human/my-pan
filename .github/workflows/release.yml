@@ -32,6 +32,6 @@ jobs:
     uses: ./.github/workflows/docker-build.yml
     secrets: inherit
     with:
-      image: ${{ secrets.DOCKERHUB_USERNAME }}/my-pan
+      image: my-pan
       tags: |
         type=raw,value=${{ github.ref_name }}

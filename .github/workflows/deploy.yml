@@ -2,6 +2,11 @@ name: Deploy Worker
 
 # 在 cloudflare 和 server 两个环境部署
 
+# 并发控制：同一分支同时只允许一个部署运行，新触发自动取消旧运行
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 # =============================================================================
 # 触发器
 # =============================================================================
@@ -122,7 +127,7 @@ jobs:
     uses: ./.github/workflows/docker-build.yml
     secrets: inherit
     with:
-      image: ${{ secrets.DOCKERHUB_USERNAME }}/my-pan
+      image: my-pan
       tags: |
         type=raw,value=latest,enable={{is_default_branch}}
         type=sha,prefix=sha-,format=short
