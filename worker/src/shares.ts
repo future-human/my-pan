@@ -144,7 +144,7 @@ function getFileIcon(key: string): string {
   return iconMap[ext] || '📎';
 }
 
-function sharePageHtml(fileName: string, errorMsg: string, expired: boolean): string {
+function sharePageHtml(fileName: string, errorMsg: string, expired: boolean, formDisabled: boolean = false): string {
   if (expired) {
     return BASE_HTML
       .replace('__EXPIRED_BLOCK__', '<div class="expired"><div class="icon">⏰</div><p data-i18n="此分享链接已过期">此分享链接已过期</p></div>')
@@ -160,11 +160,15 @@ function sharePageHtml(fileName: string, errorMsg: string, expired: boolean): st
       .replace('__NOTICE_TEXT__', '')
       .replace('__INIT_SCRIPT__', '');
   }
+  // When the error is unrecoverable (e.g. file deleted, share not found), disable the
+  // password form — entering a password is pointless and re-submitting just re-triggers
+  // the same failure.
+  const formDisplay = formDisabled ? 'none' : 'block';
   return BASE_HTML
     .replace('__EXPIRED_BLOCK__', '')
     .replace('__FILE_ICON__', getFileIcon(fileName))
     .replace('__FILE_NAME__', escHtml(fileName))
-    .replace('__FORM_DISPLAY__', 'block')
+    .replace('__FORM_DISPLAY__', formDisplay)
     .replace('__ACTIONS_DISPLAY__', 'none')
     .replace('__ACTION_BUTTONS__', '')
     .replace('__ERROR_DISPLAY__', errorMsg ? 'block' : 'none')
@@ -450,7 +454,7 @@ export async function handleShareAccess(env: Env, shareId: string, request: Requ
   }>();
 
   if (!row) {
-    return new Response(sharePageHtml('', '分享链接不存在', false), {
+    return new Response(sharePageHtml('', '分享链接不存在', false, true), {
       status: 404,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
@@ -499,19 +503,27 @@ export async function handleShareAccess(env: Env, shareId: string, request: Requ
         );
       }
 
-      // Verify S3 object exists before showing share page
+      // Verify S3 object exists before showing share page.
+      // Only treat HTTP 404 as truly "not found" — 403 (clock-skewed signature),
+      // 5xx (transient server error), etc. should not block access; the download
+      // or preview will fail naturally if the file is genuinely missing.
       try {
         const headSigned = await signRequest('HEAD', s.bucket, row.file_key, s.region, s.accessKeyId, s.secretAccessKey, s.endpoint);
         const headResp = await fetch(`${s.endpoint}/${s.bucket}/${rfc3986(row.file_key).replace(/%2F/g, '/')}`, { method: 'HEAD', headers: headSigned });
         if (!headResp.ok) {
-          console.warn('[my-pan] handleShareAccess: S3 file missing for share', shareId, row.file_key, headResp.status);
-          return new Response(sharePageHtml(row.file_name, '分享文件不存在或已被删除', false), {
-            status: 404,
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          });
+          console.warn('[my-pan] handleShareAccess: S3 HEAD returned', headResp.status, 'for share', shareId, row.file_key);
+          if (headResp.status === 404) {
+            return new Response(sharePageHtml(row.file_name, '分享文件不存在或已被删除', false, true), {
+              status: 404,
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            });
+          }
+          // Non-404 errors (403, 500, 503, etc.) are transient — log and proceed.
+          // If the file is truly gone, download/preview will fail on the next request.
         }
       } catch (headErr) {
         console.warn('[my-pan] handleShareAccess: S3 HEAD failed', shareId, row.file_key, headErr);
+        // Network-level errors are also transient — proceed.
       }
 
       const previewable = isPreviewable(row.file_key);
